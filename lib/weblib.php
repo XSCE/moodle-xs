@@ -2427,7 +2427,7 @@ function print_header ($title='', $heading='', $navigation='', $focus='',
         if ($return) {
             return $output;
         } else {
-            console_write(STDERR,$output,'',false);
+            console_write(STDOUT,$output,'',false);
             return;
         }
     }

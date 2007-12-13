@@ -100,7 +100,6 @@ function upgrade_plugins($type, $dir, $return) {
                         build_navigation(array(array('name' => $strpluginsetup, 'link' => null, 'type' => 'misc'))), '',
                         upgrade_get_javascript(), false, '&nbsp;', '&nbsp;');
                 }
-            }
                 upgrade_log_start();
                 notify(get_string('pluginrequirementsnotmet', 'error', $info));
                 $updated_plugins = true;
@@ -127,9 +126,9 @@ function upgrade_plugins($type, $dir, $return) {
             $updated_plugins = true;
             upgrade_log_start();
             print_heading($dir.'/'. $plugin->name .' plugin needs upgrading');
-        if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
-            $db->debug = true;
-        }
+            if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
+                $db->debug = true;
+            }
             @set_time_limit(0);  // To allow slow databases to complete the long SQL
 
             if ($CFG->$pluginversion == 0) {    // It's a new install of this plugin
@@ -143,9 +142,9 @@ function upgrade_plugins($type, $dir, $return) {
                 } else {
                     $status = true;
                 }
-            if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
-                $db->debug = false;
-            }
+                if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
+                    $db->debug = false;
+                }
             /// Continue with the instalation, roles and other stuff
                 if ($status) {
                 /// OK so far, now update the plugins record
@@ -181,9 +180,9 @@ function upgrade_plugins($type, $dir, $return) {
             /// First, the old function if exists
                 $oldupgrade_status = true;
                 if ($oldupgrade && function_exists($oldupgrade_function)) {
-                if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
-                    $db->debug = true;
-                }
+                    if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
+                        $db->debug = true;
+                    }
                     $oldupgrade_status = $oldupgrade_function($CFG->$pluginversion);
                 } else if ($oldupgrade) {
                     notify ('Upgrade function ' . $oldupgrade_function . ' was not available in ' .
@@ -193,17 +192,17 @@ function upgrade_plugins($type, $dir, $return) {
             /// Then, the new function if exists and the old one was ok
                 $newupgrade_status = true;
                 if ($newupgrade && function_exists($newupgrade_function) && $oldupgrade_status) {
-                if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
-                    $db->debug = true;
-                }
+                    if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
+                        $db->debug = true;
+                    }
                     $newupgrade_status = $newupgrade_function($CFG->$pluginversion);
                 } else if ($newupgrade) {
                     notify ('Upgrade function ' . $newupgrade_function . ' was not available in ' .
                              $fullplug . '/db/upgrade.php');
                 }
-            if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
-                $db->debug=false;
-            }
+                if (!defined('CLI_UPGRADE') || !CLI_UPGRADE ) {
+                    $db->debug=false;
+                }
             /// Now analyze upgrade results
                 if ($oldupgrade_status && $newupgrade_status) {    // No upgrading failed
                     // OK so far, now update the plugins record

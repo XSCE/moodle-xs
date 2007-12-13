@@ -464,6 +464,7 @@ function read_element($set=array()) {
 //=========================================================================//
 function read_url() {
     $input = read();
+    $localhost = false;
     if ( strpos($input,'localhost') !== false) {
         $input = str_replace('localhost','127.0.0.1',$input);
         $localhost=true;

@@ -135,6 +135,7 @@ require_once($CFG->libdir.'/installlib.php');			//cli-library
 require_once($CFG->dirroot.'/version.php');
 
 //include PEAR Console libraries
+set_include_path($CFG->libdir . PATH_SEPARATOR . $CFG->libdir . '/pear/');
 require_once('Console/Getopt.php');
 
 
@@ -225,9 +226,9 @@ if (!isset($INSTALL['interactivelevel'])) {
 $interactive    = &$INSTALL['interactivelevel'];
 $verbose        = &$INSTALL['verbose'];
 
-if (!file_exists('../config.php')) {
+if (!file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
 
-    $configfile = '../config.php';
+    $configfile = dirname(dirname(__FILE__)) . '/config.php';
 
 
 
@@ -648,7 +649,7 @@ if (!file_exists('../config.php')) {
 }
 
 
-if ( file_exists('../config.php')) {
+if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     // This is what happens if there is no upgrade....
     //console_write(STDERR,'configurationfileexist','install');
     //die;
@@ -656,7 +657,7 @@ if ( file_exists('../config.php')) {
 
 
     // If the configuration file does not exists exit, this should never occur !!
-    if (!file_exists('../config.php')) {
+    if (!file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
         console_write(STDERR,'configfiledoesnotexist','install');
     }
 
@@ -676,7 +677,7 @@ if ( file_exists('../config.php')) {
     //unset();
 
 
-    require_once('../config.php');
+    require_once(dirname(dirname(__FILE__)) . '/config.php');
     require_once($CFG->libdir.'/adminlib.php');  // Contains various admin-only functions
     require_once($CFG->libdir.'/ddllib.php'); // Install/upgrade related db functions
 
