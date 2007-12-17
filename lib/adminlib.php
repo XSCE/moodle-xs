@@ -223,7 +223,7 @@ function upgrade_plugins($type, $dir, $return) {
             upgrade_log_start();
             error('Version mismatch: '. $plugin->name .' can\'t downgrade '. $CFG->$pluginversion .' -> '. $plugin->version .' !');
         }
-
+    }
     upgrade_log_finish();
 
     if ($updated_plugins && !$embedded) {

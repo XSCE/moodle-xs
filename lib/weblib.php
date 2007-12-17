@@ -5753,7 +5753,7 @@ function print_error($errorcode, $module='error', $link='', $a=NULL, $extralocat
         $errordocroot = 'http://docs.moodle.org';
     }
 
-    if (defined('CLI_UPGRADE') || CLI_UPGRADE) {
+    if (defined('CLI_UPGRADE') && CLI_UPGRADE) {
         console_write(STDERR,$message,'',false);
         die ;
     }
@@ -6212,7 +6212,8 @@ function notify($message, $style='notifyproblem', $align='center', $return=false
     }
 
     $message = clean_text($message);
-
+    
+    $output = '';
     if(!defined('CLI_UPGRADE')||!CLI_UPGRADE) {
     $output = '<div class="'.$style.'" style="text-align:'. $align .'">'. $message .'</div>'."\n";
     } else if (CLI_UPGRADE && $db->debug) {
