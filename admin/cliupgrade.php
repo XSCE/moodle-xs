@@ -853,7 +853,7 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
             // (this should only have any effect during initial install).
             $adminroot = admin_get_root();
             $adminroot->prune('backups'); // backup settings table not created yet
-            apply_default_settings($adminroot);
+            admin_apply_default_settings($adminroot);
 
             /// This is used to handle any settings that must exist in $CFG but which do not exist in
             /// admin_get_root()/$ADMIN as admin_setting objects (there are some exceptions).
