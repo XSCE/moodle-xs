@@ -44,9 +44,6 @@ define('CLI_SEMI',1);
 define('CLI_FULL',2);
 define('CLI_UPGRADE',1);
 
-define ('ADODB_ASSOC_CASE', 0); //Use lowercase fieldnames for ADODB_FETCH_ASSOC
-
-
 /// Default array contain default values for all installation options
 /// Please see after library inclusion for more default values - which require libraries
 
@@ -447,7 +444,15 @@ if (!file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     if (empty($errormsg)) {
 
         /// Have the $db object ready because we are going to use it often
-
+        // fnarg
+        if (empty($CFG->dbtype)) {
+            $CFG->dbtype = $INSTALL['dbtype'];
+            $resetcfgdb = true;
+        }
+        preconfigure_dbconnection();
+        if (!empty($resetcfgdb)) {
+            $CFG->dbtype = false;
+        }
         $db = &ADONewConnection($INSTALL['dbtype']);
 
         $db->SetFetchMode(ADODB_FETCH_ASSOC);
