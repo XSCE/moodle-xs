@@ -723,7 +723,7 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
 
     /// Check settings in config.php
 
-    $dirroot = dirname(realpath("../index.php"));
+    $dirroot = realpath(dirname(dirname(__FILE__)));
     if (!empty($dirroot) and $dirroot != $CFG->dirroot) {
         console_write(STDERR,"Please fix your settings in config.php:
               \nYou have:
