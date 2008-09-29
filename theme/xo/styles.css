@@ -1,0 +1,185 @@
+
+/*This style can also be used as a starting point for other OLPC moodle themes.*/
+
+/* whole page styles */
+html {}
+body {
+margin-left:auto;
+margin-right:auto;
+margin-top:20px;
+width: 600px;
+background-color:transparent;
+}
+
+/*header styles*/
+#header-home,#header { /* header-home is for top of site page, #header is for other pages */
+
+}
+#header-home {} /* for header styles that are on the site home page */
+#header {} /* for header styles that are NOT on the site home page */
+
+#header-home a, /* you could set a:link, a:visited, a:hover individually if needed*/
+#header a{ /*set links to a light color if you have a dark background*/
+/* color:white */
+}
+
+.headermenu { /* Includes You are logged is as and language menu if present */
+}
+.headermain {
+            background-image:url(images/olpc1.jpg); /*This is the url for the picture*/
+		
+
+            background-repeat:no-repeat; /*This causes the picture not to be tiled, but rather just be one instance of the picture*/
+			
+            height:50px;  /*Height and width are both used to tell the website the size of the picture*/
+
+            width:55px;
+			
+			position:fixed;  /*This "fixes" the image in the viewport, so the elements top, bottom, right and left set its position in the viewport 
+							rather than on the page*/
+            top:0px;
+
+            left:0px;
+			
+			z-index:1;
+			
+			/*These properties are all repeated in headermain2, 3, and 4.*/
+			}  
+
+.headermain span {visibility:hidden;} /* use visibility:hidden to hide site name if using graphic */
+
+.headermain2 { /* Headermain2, 3, and 4 have all been specifically added to header.html in order to provide a vessel for the other 3 pictures that float 					in the viewport's corners*/
+
+            background-image:url(images/olpc2.jpg);  /*headermain2,3, and 4 all have the same formula for the pictures in the corners*/
+
+            background-repeat:no-repeat;
+			
+			position:fixed;
+			
+			right:0px;
+			
+			top:-17px;          
+			
+            height:50px;
+
+            width:55px;           
+			
+			z-index:3;
+			
+			}
+
+.headermain2 span {visibility:hidden;} /* use visibility:hidden to hide site name if using graphic */
+
+.headermain3 {
+			background-image:url(images/olpc3.jpg);
+			
+			background-repeat:no-repeat;
+			
+			position:fixed;
+			
+			left:0px;
+			
+			bottom:-17px;
+            
+            height:50px;
+
+            width:55px;
+
+			z-index:3;
+			
+			
+			}
+
+.headermain3 span {visibility:hidden;} /* use visibility:hidden to hide site name if using graphic */
+
+.headermain4 {
+			background-image:url(images/olpc4.jpg);
+
+            background-repeat:no-repeat;
+			
+			position:fixed;
+			right:0px;
+			bottom:-17px;
+
+            
+			
+            height:50px;
+
+            width:53px;
+
+            
+			z-index:3;
+			
+			
+			}
+
+.headermain4 span {visibility:hidden;} /* use visibility:hidden to hide site name if using graphic */
+.navbar { /* Breadcrumb row on course page */
+
+}
+.navbar .first{ /* Breadcrumb row on course page */
+/*font-family:"comic sans ms",Georgia, "Times New Roman", Times, serif;*/
+}
+
+/* footer styles */
+
+#footer{ /* the whole footer */
+background-color:#999999
+}
+
+.sitelink{ /* for the site, this puts the Moodle logo down at the bottom */
+/* display:none; */
+}
+.helplink{ /* the help link to Moodle docs at the bottom of the page */
+display:none;
+}
+.logininfo{ /* this also appears in the header */
+ /* display:none; */
+/* color:#FFFFFF;*/
+/* background-color:#00FF99; */
+}
+
+.homelink{ /* A line with a button to return to the site home page */
+}
+
+.performanceinfo .rcache {
+display:none;
+}
+
+/* Content */
+
+#content { /* Space between header and footer; does not color style blocks */
+
+background-image:url(images/Copy_of_pac.jpg); /*This is the mathematical symbol surrounded by the OLPC logo in the background*/
+}
+.sideblock,  /* set these to transparent to show content picture */
+.content,
+#course-view .section td.side,
+.sideblock .content
+ {
+background-color:transparent;
+}
+
+
+#right-column { /*Controls the properties of the right hand column.*/
+
+}
+#left-column { /*This controls the background color of the lefthand column*/
+background-color:transparent;
+
+}
+.section{
+}
+/*These control the different formats of each type of text within the html*/
+body,{}
+p,{}
+a,{}
+h1,{}
+h2,{}
+h3,{}
+li,{}
+ul,{}
+
+.content{
+/*font-family: "Courier New", Courier, mono;*/
+}

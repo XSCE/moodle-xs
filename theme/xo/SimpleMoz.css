@@ -1,0 +1,37 @@
+.headermain {
+	background-image: url(images/NewLogoFull.gif);
+	background-repeat:no-repeat;
+	height:106px;
+	width:372px;
+	position:relative;
+	top:10px;
+}
+.headermain span {visibility:hidden;};
+
+.sitelink{ /* for the site, this puts the Moodle logo down at the bottom */
+
+}
+.helplink{ /* the help link to Moodle docs at the bottom of the page */
+
+}
+
+
+.homelink{ /* A line with a button to return to the site home page */
+
+}
+
+.performanceinfo{
+
+}
+.performanceinfo .included,
+.performanceinfo .rcache {
+
+}
+
+/* Content */
+.sideblock,
+#content,
+.content,
+#course-view .section td.side {
+background-image: url(images/moz1.gif);
+}
