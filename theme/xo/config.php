@@ -72,7 +72,7 @@ $THEME->blocksheets = true;
 /// It is HIGHLY recommended to leave this enabled.
 
 
-$THEME->langsheets = false;  
+$THEME->langsheets = true;
 
 /// By setting this to true, then this theme will search for 
 /// a file named "styles.php" inside the current language
@@ -124,7 +124,6 @@ $THEME->makenavmenulist = false;
 /// $navmenulist ... this contains a simple XHTML menu of 
 /// all activities in the current course, mostly useful for 
 /// creating popup navigation menus and so on.
-
 
 
 $THEME->resource_mp3player_colors = 
