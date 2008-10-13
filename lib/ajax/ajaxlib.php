@@ -10,7 +10,7 @@
  */
 function ajax_get_lib($libname) {
 
-    global $CFG;
+    global $CFG, $HTTPSPAGEREQUIRED;
     $libpath = '';
 
     $translatelist = array(
@@ -21,15 +21,15 @@ function ajax_get_lib($libname) {
             'yui_calendar' => '/lib/yui/calendar/calendar-min.js',
             'yui_charts' => '/lib/yui/charts/charts-experimental-min.js',
             'yui_colorpicker' => '/lib/yui/colorpicker/colorpicker-min.js',
-            'yui_cookie' => '/lib/yui/cookie/cookie-beta-min.js',
             'yui_connection' => '/lib/yui/connection/connection-min.js',
             'yui_container' => '/lib/yui/container/container-min.js',
-            'yui_datasource' => '/lib/yui/datasource/datasource-beta-min.js',
-            'yui_datatable' => '/lib/yui/datatable/datatable-beta-min.js',
+            'yui_cookie' => '/lib/yui/cookie/cookie-min.js',
+            'yui_datasource' => '/lib/yui/datasource/datasource-min.js',
+            'yui_datatable' => '/lib/yui/datatable/datatable-min.js',
             'yui_dom' => '/lib/yui/dom/dom-min.js',
             'yui_dom-event' => '/lib/yui/yahoo-dom-event/yahoo-dom-event.js',
             'yui_dragdrop' => '/lib/yui/dragdrop/dragdrop-min.js',
-            'yui_editor' => '/lib/yui/editor/editor-beta-min.js',
+            'yui_editor' => '/lib/yui/editor/editor-min.js',
             'yui_element' => '/lib/yui/element/element-beta-min.js',
             'yui_event' => '/lib/yui/event/event-min.js',
             'yui_get' => '/lib/yui/get/get-min.js',
@@ -37,33 +37,39 @@ function ajax_get_lib($libname) {
             'yui_imagecropper' => '/lib/yui/imagecropper/imagecropper-beta-min.js',
             'yui_imageloader' => '/lib/yui/imageloader/imageloader-min.js',
             'yui_json' => '/lib/yui/json/json-min.js',
-            'yui_layout' => '/lib/yui/layout/layout-beta-min.js',
+            'yui_layout' => '/lib/yui/layout/layout-min.js',
             'yui_logger' => '/lib/yui/logger/logger-min.js',
             'yui_menu' => '/lib/yui/menu/menu-min.js',
-            'yui_profiler' => '/lib/yui/profiler/profiler-beta-min.js',
+            'yui_profiler' => '/lib/yui/profiler/profiler-min.js',
             'yui_profilerviewer' => '/lib/yui/profilerviewer/profilerviewer-beta-min.js',
-            'yui_resize' => '/lib/yui/resize/resize-beta-min.js',
+            'yui_resize' => '/lib/yui/resize/resize-min.js',
             'yui_selector' => '/lib/yui/selector/selector-beta-min.js',
-            'yui_simpleeditor' => '/lib/yui/editor/simpleeditor-beta-min.js',
+            'yui_simpleeditor' => '/lib/yui/editor/simpleeditor-min.js',
             'yui_slider' => '/lib/yui/slider/slider-min.js',
             'yui_tabview' => '/lib/yui/tabview/tabview-min.js',
             'yui_treeview' => '/lib/yui/treeview/treeview-min.js',
             'yui_uploader' => '/lib/yui/uploader/uploader-experimental-min.js',
             'yui_utilities' => '/lib/yui/utilities/utilities.js',
-            'yui_yuiloader' => '/lib/yui/yuiloader/yuiloader-beta-min.js',
-            'yui_yuitest' => '/lib/yui/yuitest/yuitest-beta-min.js',
+            'yui_yuiloader' => '/lib/yui/yuiloader/yuiloader-min.js',
+            'yui_yuitest' => '/lib/yui/yuitest/yuitest-min.js',
             'ajaxcourse_blocks' => '/lib/ajax/block_classes.js',
             'ajaxcourse_sections' => '/lib/ajax/section_classes.js',
             'ajaxcourse' => '/lib/ajax/ajaxcourse.js'
             );
 
+    if (!empty($HTTPSPAGEREQUIRED)) {
+        $wwwroot = $CFG->httpswwwroot;
+    } else {
+        $wwwroot = $CFG->wwwroot;
+    }
+
     if (array_key_exists($libname, $translatelist)) {
-        $libpath = $CFG->wwwroot . $translatelist[$libname];
+        $libpath = $wwwroot . $translatelist[$libname];
     } else {
         $libpath = $libname;
     }
 
-    $testpath = str_replace($CFG->wwwroot, $CFG->dirroot, $libpath);
+    $testpath = str_replace($wwwroot, $CFG->dirroot, $libpath);
     if (!file_exists($testpath)) {
         error('require_js: '.$libpath.' - file not found.');
     }

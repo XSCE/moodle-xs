@@ -120,7 +120,7 @@ $moodle_capabilities = array(
             'editingteacher' => CAP_ALLOW
         )
     ),
-    
+
     'moodle/site:sendmessage' => array(
 
         'riskbitmask' => RISK_SPAM,
@@ -131,7 +131,7 @@ $moodle_capabilities = array(
             'admin' => CAP_ALLOW,
             'user' => CAP_ALLOW
         )
-    ),   
+    ),
 
     'moodle/site:approvecourse' => array(
 
@@ -628,7 +628,46 @@ $moodle_capabilities = array(
             'admin' => CAP_ALLOW
         )
     ),
-    
+
+    'moodle/course:changefullname' => array(
+
+        'riskbitmask' => RISK_XSS,
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'legacy' => array(
+            'editingteacher' => CAP_ALLOW,
+            'admin' => CAP_ALLOW
+        ),
+        'clonepermissionsfrom' => 'moodle/course:update'
+    ),
+
+    'moodle/course:changeshortname' => array(
+
+        'riskbitmask' => RISK_XSS,
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'legacy' => array(
+            'editingteacher' => CAP_ALLOW,
+            'admin' => CAP_ALLOW
+        ),
+        'clonepermissionsfrom' => 'moodle/course:update'
+    ),
+
+    'moodle/course:changeidnumber' => array(
+
+        'riskbitmask' => RISK_XSS,
+
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'legacy' => array(
+            'editingteacher' => CAP_ALLOW,
+            'admin' => CAP_ALLOW
+        ),
+        'clonepermissionsfrom' => 'moodle/course:update'
+    ),
+
     'moodle/site:viewparticipants' => array(
 
         'captype' => 'read',

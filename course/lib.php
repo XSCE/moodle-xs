@@ -255,7 +255,7 @@ function print_log($course, $user=0, $date=0, $order="l.time ASC", $page=0, $per
 
     print_paging_bar($totalcount, $page, $perpage, "$url&amp;perpage=$perpage&amp;");
 
-    echo '<table class="logtable genearlbox boxaligncenter" summary="">'."\n";
+    echo '<table class="logtable generalbox boxaligncenter" summary="">'."\n";
     // echo "<table class=\"logtable\" cellpadding=\"3\" cellspacing=\"0\" summary=\"\">\n";
     echo "<tr>";
     if ($course->id == SITEID) {
@@ -2368,11 +2368,11 @@ function move_section_to($course, $section, $destination) {
 /// Moves a whole course section up and down within the course
     global $USER;
 
-    if (!$destination) {
+    if (!$destination && $destination != 0) {
         return true;
     }
 
-    if ($destination > $course->numsections or $destination < 1) {
+    if ($destination > $course->numsections) {
         return false;
     }
 

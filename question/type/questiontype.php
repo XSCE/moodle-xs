@@ -270,10 +270,11 @@ class default_questiontype {
             $question->defaultgrade = $form->defaultgrade;
         }
 
-        if (!empty($question->id)) { // Question already exists
-            if (isset($form->categorymoveto)){
+        if (!empty($question->id) && !empty($form->categorymoveto)) { // Question already exists
+            list($movetocategory, $movetocontextid) = explode(',', $form->categorymoveto);
+            if ($movetocategory != $question->category){
                 question_require_capability_on($question, 'move');
-                list($question->category, $movetocontextid) = explode(',', $form->categorymoveto);
+                $question->category = $movetocategory;
                 //don't need to test add permission of category we are moving question to.
                 //Only categories that we have permission to add
                 //a question to will get through the form cleaning code for the select box.
@@ -834,8 +835,9 @@ class default_questiontype {
         if (question_has_capability_on($question, 'edit')) {
             $stredit = get_string('edit');
             $linktext = '<img src="'.$CFG->pixpath.'/t/edit.gif" alt="'.$stredit.'" />';
-            $editlink = link_to_popup_window('/question/question.php?inpopup=1&amp;id='.$question->id.$cmorcourseid,
-                                             'editquestion', $linktext, 450, 550, $stredit, '', true);
+            $editlink = link_to_popup_window('/question/question.php?inpopup=1&amp;id=' .
+                    $question->id . $cmorcourseid, 'editquestion',
+                    $linktext, false, false, $stredit, '', true);
         }
 
         $generalfeedback = '';
