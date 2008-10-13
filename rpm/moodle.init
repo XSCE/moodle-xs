@@ -24,19 +24,21 @@
 # source function library
 . /etc/rc.d/init.d/functions
 
+# both moodle cron and config.php check
+# for this file -
 lockfile=/var/lock/subsys/moodle
 
 RETVAL=0
 
 start() {
-	echo -n $"Enabling Moodle cron job: "
+	echo -n $"Enabling Moodle access and cron job: "
 	touch "$lockfile" && success || failure
 	RETVAL=$?
 	echo
 }
 
 stop() {
-	echo -n $"Disabling Moodle cron job: "
+	echo -n $"Disabling Moodle access and cron job: "
 	rm -f "$lockfile" && success || failure
 	RETVAL=$?
 	echo

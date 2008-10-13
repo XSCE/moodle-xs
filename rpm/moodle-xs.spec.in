@@ -18,9 +18,10 @@ BuildArch:      noarch
 Source: %{name}-%{version}.tar.gz
 
 BuildRequires:  unzip
-Requires:       php-gd vixie-cron mimetex perl(lib) php-mysql php-xmlrpc
+Requires:       php-gd vixie-cron mimetex perl(lib) php-pgsql php-xmlrpc
 Requires:       perl(Encode) perl(Text::Aspell) perl(HTML::Parser) php
 Requires:       perl(HTML::Entities) perl(CGI)
+Requires:       mimetex
 Requires(post): /sbin/chkconfig
 Requires(preun): /sbin/chkconfig
 Requires(preun): /sbin/service
@@ -61,15 +62,18 @@ rm config-dist.php install.php tags filter/tex/mimetex.* filter/tex/README.mimet
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{moodlewebdir}
 mkdir -p $RPM_BUILD_ROOT%{moodledatadir}
+mkdir -p $RPM_BUILD_ROOT%{_var}/log/moodle
 cp -a * $RPM_BUILD_ROOT%{moodlewebdir}
 rm $RPM_BUILD_ROOT%{moodlewebdir}/README*
 rm -fr $RPM_BUILD_ROOT%{moodlewebdir}/install
 install -p -D -m 0644 rpm/moodle.conf       $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d/moodle.conf
 install -p -D -m 0644 rpm/moodle-config.php $RPM_BUILD_ROOT%{moodlewebdir}/config.php
 install -p -D -m 0644 rpm/moodle.cron $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/moodle
+install -p -D -m 0644 rpm/moodle.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/moodle
 install -p -D -m 0755 rpm/moodle-cron $RPM_BUILD_ROOT%{_sbindir}/moodle-cron
 install -p -D -m 0755 rpm/moodle.init $RPM_BUILD_ROOT%{_initrddir}/moodle
 rm -fr $RPM_BUILD_ROOT%{moodlewebdir}/rpm
+rm $RPM_BUILD_ROOT%{moodlewebdir}/Makefile
 find $RPM_BUILD_ROOT -name \*.mimetex-\* -exec rm {} \;
 find $RPM_BUILD_ROOT -size 0 -name '*.sql'  -exec rm {} \;
 
@@ -91,7 +95,9 @@ fi
 %dir %{_var}/www/moodle
 %dir %{moodlewebdir}
 %config(noreplace) %{moodlewebdir}/config.php
+%config(noreplace) %{_sysconfdir}/logrotate.d/moodle
 %attr(-,apache,apache) %{moodledatadir}
+%attr(-,apache,apache) %{_var}/log/moodle
 %config(noreplace) %{_sysconfdir}/cron.d/moodle
 %config(noreplace) %{_sysconfdir}/httpd/conf.d/moodle.conf
 %{_initrddir}/moodle
@@ -101,7 +107,6 @@ fi
 %{moodlewebdir}/iplookup
 %dir %{moodlewebdir}/lang
 %{moodlewebdir}/lang/*
-%{moodlewebdir}/lang/README.txt
 %{moodlewebdir}/lib
 %{moodlewebdir}/login
 
