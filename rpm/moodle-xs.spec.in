@@ -1,0 +1,112 @@
+%define moodlewebdir %{_var}/www/moodle/web
+%define moodledatadir %{_var}/lib/moodle
+
+# Suppress finding Perl libraries supplied by filter/algebra/*.p?
+%define __perl_requires %{nil}
+%define __perl_provides %{nil}
+
+Name:           moodle-xs
+Version:        @VERSION@
+Release:        1%{?dist}
+Summary:        A Course Management System
+
+Group:          Applications/Publishing
+License:        GPLv2+
+URL:            http://moodle.org/
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildArch:      noarch
+Source: %{name}-%{version}.tar.gz
+
+BuildRequires:  unzip
+Requires:       php-gd vixie-cron mimetex perl(lib) php-mysql php-xmlrpc
+Requires:       perl(Encode) perl(Text::Aspell) perl(HTML::Parser) php
+Requires:       perl(HTML::Entities) perl(CGI)
+Requires(post): /sbin/chkconfig
+Requires(preun): /sbin/chkconfig
+Requires(preun): /sbin/service
+
+Conflicts:      moodle
+
+%description
+Cutom Moodle for the OLPC School Server.
+
+Moodle is a course management system (CMS) - a free, Open Source software
+package designed using sound pedagogical principles, to help educators create
+effective online learning communities.
+
+%prep
+%setup -q -n %{name}-%{version}
+
+find . -type f \! -name \*.pl -exec chmod a-x {} \;
+find . -name \*.cgi -exec chmod a+x {} \;
+chmod a+x admin/process_email.php
+chmod a+x mod/chat/chatd.php
+chmod a+x mod/wiki/ewiki/fragments/mkhuge
+rm search/.cvsignore
+sed -i 's/\r//' lib/adodb/license.txt
+sed -i 's/\r//' lib/adodb/readme.txt
+sed -i 's/\r//' lib/adodb/session/adodb-sess.txt
+sed -i 's/\r//' lib/mp3player/readme.txt
+sed -i 's/\r//' lib/pclzip/gnu-lgpl.txt
+sed -i 's/\r//' lib/pclzip/readme.txt
+sed -i 's/\r//' mod/wiki/ewiki/README
+sed -i 's/\r//' mod/wiki/ewiki/README.de
+
+%build
+
+# Get rid of unwarranted stuff
+rm config-dist.php install.php tags filter/tex/mimetex.* filter/tex/README.mimetex
+
+%install
+rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT%{moodlewebdir}
+mkdir -p $RPM_BUILD_ROOT%{moodledatadir}
+cp -a * $RPM_BUILD_ROOT%{moodlewebdir}
+rm $RPM_BUILD_ROOT%{moodlewebdir}/README*
+rm -fr $RPM_BUILD_ROOT%{moodlewebdir}/install
+install -p -D -m 0644 rpm/moodle.conf       $RPM_BUILD_ROOT%{_sysconfdir}/httpd/conf.d/moodle.conf
+install -p -D -m 0644 rpm/moodle-config.php $RPM_BUILD_ROOT%{moodlewebdir}/config.php
+install -p -D -m 0644 rpm/moodle.cron $RPM_BUILD_ROOT%{_sysconfdir}/cron.d/moodle
+install -p -D -m 0755 rpm/moodle-cron $RPM_BUILD_ROOT%{_sbindir}/moodle-cron
+install -p -D -m 0755 rpm/moodle.init $RPM_BUILD_ROOT%{_initrddir}/moodle
+rm -fr $RPM_BUILD_ROOT%{moodlewebdir}/rpm
+find $RPM_BUILD_ROOT -name \*.mimetex-\* -exec rm {} \;
+find $RPM_BUILD_ROOT -size 0 -name '*.sql'  -exec rm {} \;
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+/sbin/chkconfig --add moodle
+
+%preun
+if [ $1 = 0 ]; then
+  /sbin/service moodle stop >/dev/null 2>&1
+  /sbin/chkconfig --del moodle
+fi
+
+%files
+%defattr(-,root,root,-)
+%doc README*
+%dir %{_var}/www/moodle
+%dir %{moodlewebdir}
+%config(noreplace) %{moodlewebdir}/config.php
+%attr(-,apache,apache) %{moodledatadir}
+%config(noreplace) %{_sysconfdir}/cron.d/moodle
+%config(noreplace) %{_sysconfdir}/httpd/conf.d/moodle.conf
+%{_initrddir}/moodle
+%{_sbindir}/moodle-cron
+%{moodlewebdir}/[a-hj-km-z]*
+%{moodlewebdir}/index.php
+%{moodlewebdir}/iplookup
+%dir %{moodlewebdir}/lang
+%{moodlewebdir}/lang/*
+%{moodlewebdir}/lang/README.txt
+%{moodlewebdir}/lib
+%{moodlewebdir}/login
+
+%changelog
+* Mon Jun 23 2008 Jon Ciesla <limb@jcomserv.net> - 1.9.1-2
+- Add php Requires, BZ 452341.
+
+

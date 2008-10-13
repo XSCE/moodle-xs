@@ -1,0 +1,6 @@
+Edit /var/www/moodle/web/config.php to the values you need to connect to your
+database.  Once you've configured Moodle properly don't forget to run
+
+ /sbin/service moodle start ; /sbin/chkconfig moodle on
+
+in order to activate the Moodle cron job.
