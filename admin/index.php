@@ -648,7 +648,7 @@
     }
 
 /// Alert if we are currently in maintenance mode
-    if (file_exists($CFG->dataroot.'/1/maintenance.html')) {
+    if (file_exists($CFG->dataroot.'/'.SITEID.'/maintenance.html')) {
         print_box(get_string('sitemaintenancewarning', 'admin'), 'generalbox adminwarning');
     }
 
