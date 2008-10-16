@@ -2926,7 +2926,8 @@ function print_footer($course=NULL, $usercourse=NULL, $return=false) {
                '<a title="Moodle '. $CFG->release .'" href="http://moodle.org/">'.
                '<img style="width:100px;height:30px" src="pix/moodlelogo.gif" alt="moodlelogo" /></a></div>';
             $home  = true;
-
+	    // Remove Moodle branding here - 
+	    $homelink = '';
         } else {
             $homelink = '<div class="homelink"><a '.$CFG->frametarget.' href="'.$CFG->wwwroot.
                         '/course/view.php?id='.$course->id.'">'.format_string($course->shortname).'</a></div>';
