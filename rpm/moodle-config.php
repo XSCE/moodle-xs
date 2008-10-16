@@ -19,12 +19,17 @@ $CFG->directorypermissions = 02777;
 
 $CFG->admin = 'admin';
 
-// Settings for features - 
-$CFG->disablemycourses = true;
+////
+//// Feature settings
+////
+// Ensure we don't send out emails - ever
+$CFG->noemailever = true;
 
 // This gives us better logging in apache
 $CFG->apacheloguser = 3; // Log username.
 
+// Disable old, slow, buggy HTMLArea until we have tinymce sorted out
+$CFG->htmleditor=0;
 
 if ($CFG->wwwroot == 'http://example.com/moodle') {
     echo "<p>Error detected in configuration file</p>";
