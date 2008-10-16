@@ -19,6 +19,10 @@ $CFG->directorypermissions = 02777;
 
 $CFG->admin = 'admin';
 
+// Logging
+$CFG->debug=6143;
+$CFG->debugdisplay=0;
+
 ////
 //// Feature settings
 ////
