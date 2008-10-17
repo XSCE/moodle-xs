@@ -35,6 +35,31 @@ $CFG->apacheloguser = 3; // Log username.
 // Disable old, slow, buggy HTMLArea until we have tinymce sorted out
 $CFG->htmleditor=0;
 
+/// Authentication -
+// Force logins
+$CFG->forcelogin=1;
+// Don't allow guests in...
+$CFG->guestloginbutton=0;
+// Don't allow registrations
+$CFG->registerauth='';
+// OLPCXS
+$CFG->auth='olpcxs';
+$CFG->olpcxsdb='/home/idmgr/identity.db';
+
+// Frontpage
+$CFG->frontpage='0,1';
+$CFG->frontpageloggedin='0,1';
+
+// Security
+$CFG->cronclionly=1;
+
+// Sysconfig
+$CFG->zip='/usr/bin/zip';
+$CFG->unzip='/usr/bin/unzip';
+$CFG->du='/usr/bin/du';
+$CFG->aspellpath='/usr/bin/aspell';
+
+
 if ($CFG->wwwroot == 'http://example.com/moodle') {
     echo "<p>Error detected in configuration file</p>";
     echo "<p>Your server address can not be: \$CFG->wwwroot = 'http://example.com/moodle';</p>";
