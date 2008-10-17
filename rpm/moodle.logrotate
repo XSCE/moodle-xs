@@ -2,6 +2,6 @@
     missingok
     notifempty
     size 30k
-    yearly
+    weekly
     create 0600 root root
 }
