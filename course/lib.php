@@ -1837,14 +1837,15 @@ function print_courses($category) {
         echo "</ul>\n";
     } else {
         print_heading(get_string("nocoursesyet"));
-        $context = get_context_instance(CONTEXT_SYSTEM);
-        if (has_capability('moodle/course:create', $context)) {
-            $options = array();
-            $options['category'] = $category->id;
-            echo '<div class="addcoursebutton">';
-            print_single_button($CFG->wwwroot.'/course/edit.php', $options, get_string("addnewcourse"));
-            echo '</div>';
-        }
+    }
+
+    $context = get_context_instance(CONTEXT_SYSTEM);
+    if (has_capability('moodle/course:create', $context)) {
+        $options = array();
+        $options['category'] = $category->id;
+        echo '<div class="addcoursebutton">';
+        print_single_button($CFG->wwwroot.'/course/edit.php', $options, get_string("addnewcourse"));
+        echo '</div>';
     }
 
 
