@@ -5,7 +5,7 @@
 # Author:       Ignacio Vazquez-Abrams <ivazquez@ivazquez.net>
 # Adapted from the yum initscript by Seth Vidal
 #
-# chkconfig: 345 50 01
+# chkconfig: 345 95 01
 #
 # description:  Enable the Moodle cron job
 #
@@ -34,6 +34,7 @@ start() {
 	
         if [ -e /etc/moodle/needsupgrade ]; then
                 echo "Moodle installation or upgrade required..."
+		pushd /var/www/moodle/web
                 # Attempt to create an 'apache' user in PostgreSQL
                 su  -c 'createuser -SRD apache' postgres || echo 'Could not create apache user (exists already?)'
                 # attempt to create a database
@@ -55,6 +56,7 @@ start() {
 		    failure
 		    exit 1
 		fi
+		popd
 	fi
 	echo -n $"Enabling Moodle access and cron job: "
 	touch "$lockfile" && success || failure
