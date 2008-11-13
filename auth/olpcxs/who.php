@@ -1,6 +1,9 @@
 <?php
 require_once(dirname(dirname(dirname(__FILE__))).'/config.php');
 
+if (empty($CFG->olpcxsdb) || !file_exists($CFG->olpcxsdb)) {
+    error("It looks like nobody has registered yet. Register your laptop. (Cannot find the identity database.)");
+}
 $dbh = new PDO('sqlite:' . $CFG->olpcxsdb);
 $rs = $dbh->query('select * from laptops');
 
