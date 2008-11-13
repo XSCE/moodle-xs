@@ -85,26 +85,13 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 /sbin/chkconfig --add moodle
-# Attempt to create an 'apache' user in PostgreSQL
-su  -c 'createuser -SRD apache' postgres || echo 'Could not create apache user (exists already?)'
-# attempt to create a database
-su -c 'createdb -O apache -E utf8 moodle-xs' postgres || echo 'Could not create moodle-xs DB (exists already?)'
 # create a safe password
 if [ ! -e /etc/moodle/adminpw -o -z /etc/moodle/adminpw ]; then
    pwgen -1 -B 12 > /etc/moodle/adminpw
    chmod 600 /etc/moodle/adminpw
 fi
 
-sudo -u apache /usr/bin/php /var/www/moodle/web/admin/cliupgrade.php \
- --agreelicense=yes --confirmrelease=yes \
- --sitefullname='School Server' \
- --siteshortname='XS' \
- --sitesummary='Put the name of your school here' \
- --adminfirstname=Admin --adminlastname=OLPC \
- --adminusername=admin --adminpassword=`cat /etc/moodle/adminpw` \
- --adminemail=admin@localhost \
- --verbose=0 --interactivelevel=0 
-
+touch /etc/moodle/needsupgrade
 
 %preun
 if [ $1 = 0 ]; then
