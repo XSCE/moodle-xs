@@ -12,6 +12,12 @@ $CFG->prefix    = 'mdl_';        // Prefix to use for all table names
 $CFG->dbpersist = true;         // Should database connections be reused?
 
 $CFG->wwwroot   = 'http://schoolserver/moodle';
+if (file_exists('/etc/sysconfig/xs_domain_name')) {
+    $fqdn=trim(file_get_contents('/etc/sysconfig/xs_domain_name'));
+    $CFG->wwwroot = "http://schoolserver.$fqdn/moodle";
+    unset($fqdn);
+}
+
 $CFG->dirroot   = '/var/www/moodle/web';
 $CFG->dataroot  = '/var/lib/moodle';
 
