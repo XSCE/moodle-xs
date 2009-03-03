@@ -3,5 +3,5 @@
     notifempty
     size 30k
     weekly
-    create 0600 root root
+    create 0600 apache apache
 }
