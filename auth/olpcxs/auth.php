@@ -62,16 +62,16 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	    // is this our first user to ever login?
 	    $first = get_field_sql("SELECT COUNT(id)
 				    FROM {$CFG->prefix}user
-			            WHERE auth='olpcxs' AND lastlogin > 0 ");
+			            WHERE auth='olpcxs' AND lastlogin > 0 AND id != {$user->id}");
 	    if ((int)$first > 0) {
-	      $first = true;
-	    } else {
 	      $first = false;
+	    } else {
+	      $first = true;
 	    }
 	    if ($first) {
 	      $ccrole	 = get_record('role', 'shortname', 'coursecreator');
 	      $etrole	 = get_record('role', 'shortname', 'editingteacher');
-	      $sitectx = get_context_instance(CONTEXT_SYSTEM);
+	      $sitectx   = get_context_instance(CONTEXT_SYSTEM);
 	      $sitecoursectx = get_record('context',
 					  'contextlevel', CONTEXT_COURSE,
 					  'instanceid', SITEID);
