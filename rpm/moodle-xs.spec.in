@@ -27,6 +27,8 @@ Requires(post): pwgen
 Requires(preun): /sbin/chkconfig
 Requires(preun): /sbin/service
 
+# rsvg-convert is used to render icons...
+Requires:       librsvg2
 
 Conflicts:      moodle
 
