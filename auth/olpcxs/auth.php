@@ -87,6 +87,18 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	      }
 	    }
 
+	    // icon for the user - we cannot do this in
+	    // create_update_user() because it's only
+	    // in the cookie, and not in idmgr. grumble...
+	    // .. expecting something like "#FF8F00,#00A0FF"
+	    // rough regex
+	    if (!empty($xoid->color) && preg_match('/#[A-F0-9]{1,6},#[A-F0-9]{1,6}/', $xoid->color)) {
+	      $iconpref = get_user_preferences('xoicon', $user->id);
+	      if (empty($iconpref) || $iconpref !== $xoid->color) {
+		set_user_preference('xoicon',$xoid->color, $user->id);
+	      }
+	    }
+
 	    // complete login
 	    $USER = get_complete_user_data('id', $user->id);
 	    complete_user_login($USER);
@@ -127,6 +139,7 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	    $user->mnethostid   = $CFG->mnet_localhost_id;
 	    $user->lang         = $CFG->lang;
 	    $user->confirmed	= 1;
+	    $user->picture      = 1;
 
 	    // username & fqdn  won't change over the lifetime of the account
 	    $user->username     = addslashes($extuser['serial']);
