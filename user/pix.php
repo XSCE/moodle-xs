@@ -18,7 +18,49 @@
     if (count($args) == 2) {
         $userid   = (integer)$args[0];
         $image    = $args[1];
-        $pathname = make_user_directory($userid, true) . "/$image";
+
+
+	$userdir = make_user_directory($userid, false);
+
+	if ($xoicon = get_user_preferences('xoicon', NULL, $userid)) {
+	  if (preg_match('/#([A-F0-9]{1,6}),#([A-F0-9]{1,6})/', $xoicon, $matches)) {
+	    $fillcolor   = $matches[2];
+	    $strokecolor = $matches[1];
+	    $imgid = "$fillcolor-$strokecolor";
+
+	    // fixup the requested path from jpg to png
+	    $image = preg_replace('/\.jpg$/', '.png', $image);
+	    
+	    $svg_fpath = "$userdir/xoicon-$imgid.svg";
+	    if (!file_exists($svg_fpath)) {
+	      // create appropriate svg file, and the f1 / f2 jpgs...
+	      ob_start();
+	      include(dirname(__FILE__) . '/xopix.php');
+	      $svg_xml = ob_get_clean();
+
+	      // should do this in $CFG->dataroot.'/temp/'
+	      // but this is strangely racey with send_file below
+	      $svg_fpath_tmp = tempnam($userdir, 'tmp-svg-');
+	      $f1_fpath_tmp  = tempnam($userdir, 'tmp-f1-');
+	      $f2_fpath_tmp  = tempnam($userdir, 'tmp-f2-');
+
+	      // do it atomically
+	      file_put_contents($svg_fpath_tmp, $svg_xml)
+		&& ( system("/usr/bin/rsvg-convert -f png -w 100 -h 100 -o $f1_fpath_tmp $svg_fpath_tmp") !== FALSE )
+		&& ( system("/usr/bin/rsvg-convert -f png -w 35  -h 35  -o $f2_fpath_tmp $svg_fpath_tmp") !== FALSE )
+		&& chmod($f1_fpath_tmp,  0755)
+		&& chmod($f2_fpath_tmp,  0755)
+		&& chmod($svg_fpath_tmp, 0755)
+		&& rename($f1_fpath_tmp, "$userdir/f1.png")
+		&& rename($f2_fpath_tmp, "$userdir/f2.png")
+		&& rename($svg_fpath_tmp, $svg_fpath);
+	      
+	    }
+
+	  }
+	}
+
+        $pathname = $userdir . "/$image";
         if (file_exists($pathname) and !is_dir($pathname)) {
             send_file($pathname, $image);
         }
