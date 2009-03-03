@@ -31,71 +31,174 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	}
 
 	function loginpage_hook(){
-		global $CFG;
-		if (isguestuser() || !isloggedin()) {
-			if (empty($_GET['showlogin'])) {
-				redirect("{$CFG->wwwroot}/auth/olpcxs/who.php");
-			}
-		}
+	  global $CFG;
+	  global $USER;
+	  global $SESSION;
+
+	  if ( (isguestuser() || !isloggedin())
+	       && !empty($_COOKIE['xoid'])) {
+	    // on 1.9 and earlier, $_COOKIE is badly mangled
+	    // by addslashes_deep() so...
+	    $xoid = json_decode(stripslashes($_COOKIE['xoid']));
+
+	    $user = get_record('user', 'idnumber', addslashes($xoid->pkey_hash));
+	    if (empty($user)) { // maybe the account is new!
+	      $this->idmgr_sync(true);
+	      $user = get_record('user', 'idnumber', addslashes($xoid->pkey_hash));
+	      if (empty($user)) {
+		// We failed to login the user
+		// even though we saw a cookie.
+		// Probably the client side is confused.
+		// Log the problem, let things continue...
+		trigger_error('auth/olpcxs: user with pkey_hash ' . $xoid->pkey_hash . ' was not found after idmgr_sync()');
+		return true;
+	      }
+	    }
+
+	    //
+	    // we have the user acct, complete login dance now
+	    //
+
+	    // is this our first user to ever login?
+	    $first = get_field_sql("SELECT COUNT(id)
+				    FROM {$CFG->prefix}user
+			            WHERE auth='olpcxs' AND lastlogin > 0 ");
+	    if ((int)$first > 0) {
+	      $first = true;
+	    } else {
+	      $first = false;
+	    }
+	    if ($first) {
+	      $ccrole	 = get_record('role', 'shortname', 'coursecreator');
+	      $etrole	 = get_record('role', 'shortname', 'editingteacher');
+	      $sitectx = get_context_instance(CONTEXT_SYSTEM);
+	      $sitecoursectx = get_record('context',
+					  'contextlevel', CONTEXT_COURSE,
+					  'instanceid', SITEID);
+
+	      role_assign($ccrole->id, $user->id, 0, $sitectx->id);
+	      role_assign($ccrole->id, $user->id, 0, $sitecoursectx->id);
+	      role_assign($etrole->id, $user->id, 0, $sitecoursectx->id);
+
+	      // tweak coursecreator to be able to assign course-creator roles systemwide...
+	      assign_capability('moodle/role:assign', CAP_ALLOW, $ccrole->id, $sitectx->id, false);
+	      if (!get_record('role_allow_assign', 'roleid', $ccrole->id, 'allowassign', $ccrole->id)) {
+		allow_assign($ccrole->id,$ccrole->id);
+	      }
+	    }
+
+	    // complete login
+	    $USER = get_complete_user_data('id', $user->id);
+	    complete_user_login($USER);
+
+	    // redirect
+	    if (isset($SESSION->wantsurl) and (strpos($SESSION->wantsurl, $CFG->wwwroot) === 0)) {
+	      $urltogo = $SESSION->wantsurl;    /// Because it's an address in this site
+	      unset($SESSION->wantsurl);
+            } else {
+                // no wantsurl stored or external - go to homepage
+                $urltogo = $CFG->wwwroot.'/';
+                unset($SESSION->wantsurl);
+            }
+	    redirect($urltogo);
+	  }
 	}
 
-	function getorcreate_user($extuser) {
-		global $CFG;
-		$firsttime = false;
+	function create_update_user($extuser) {
+	  global $CFG;
+	  global $XS_FQDN;
 
-		// get the local record for the remote user
-		$localuser = get_record('user', 'username', addslashes($extuser['serial']));
+	  /// Note: updates are limited to 
+	  /// firstname - nickname from XO
+	  /// idnumber  - pkey_hash from XO
 
-		if (!empty($localuser)) {
-			return $localuser;
-		}
+	  // get the local record for the remote user
+	  $user = get_record('user', 'username', addslashes($extuser['serial']));
 
-		$first = get_field_sql("SELECT COUNT(id)
-							  FROM {$CFG->prefix}user
-							  WHERE auth='olpcxs'");
-		if ((int)$first > 0) {
-			$first = true;
-		} else {
-			$first = false;
-		}
+	  $pkey_hash = $this->compute_pkey_hash($extuser['pubkey']);
 
-		// add the user to the database if necessary
-		$user = new StdClass;
-		$user->username = addslashes($extuser['serial']);
-		$user->firstname = addslashes($extuser['nickname']);
-		$user->lastname = ' ';
-		$user->email = addslashes($extuser['nickname']) . '@xs.laptop.org';
-		$user->modified	= time();
-		$user->confirmed	= 1;
-		$user->auth		= 'olpcxs';
-		$user->mnethostid = $CFG->mnet_localhost_id;
-		$user->lang = $CFG->lang;
-		$uid = insert_record('user', addslashes_object($user));
+	  if (empty($user)) {
+	    // add the user to the database if necessary
+	    $user = new StdClass;
 
-		if (! $localuser = get_record('user', 'id', $uid)) {
-			error("Failed to get new user record");
-		}
+	    // Harcoded fields -
+	    $user->lastname     = ' ';
+	    $user->auth		= 'olpcxs';
+	    $user->mnethostid   = $CFG->mnet_localhost_id;
+	    $user->lang         = $CFG->lang;
+	    $user->confirmed	= 1;
 
-		if ($first) {
-			$ccrole	 = get_record('role', 'shortname', 'coursecreator');
-			$etrole	 = get_record('role', 'shortname', 'editingteacher');
-			$sitectx = get_context_instance(CONTEXT_SYSTEM);
-			$sitecoursectx = get_record('context',
-										'contextlevel', CONTEXT_COURSE,
-										'instanceid', SITEID);
+	    // username & fqdn  won't change over the lifetime of the account
+	    $user->username     = addslashes($extuser['serial']);
+	    $user->email        = addslashes($extuser['serial']) . '@' . $XS_FQDN;
 
-			role_assign($ccrole->id, $localuser->id, 0, $sitectx->id);
-			role_assign($ccrole->id, $localuser->id, 0, $sitecoursectx->id);
-			role_assign($etrole->id, $localuser->id, 0, $sitecoursectx->id);
+	    // we'll accept changes in nickname, and the pkey_hash
+	    $user->firstname    = addslashes($extuser['nickname']);
+	    $user->idnumber     = addslashes($pkey_hash);
+	    $user->modified	= time();
 
-			// tweak coursecreator to be able to assign course-creator roles systemwide...
-			assign_capability('moodle/role:assign', CAP_ALLOW, $ccrole->id, $sitectx->id, false);
-			if (!get_record('role_allow_assign', 'roleid', $ccrole->id, 'allowassign', $ccrole->id)) {
-				allow_assign($ccrole->id,$ccrole->id);
-			}
-		}
+	    $uid = insert_record('user', addslashes_object($user));
 
-		return $localuser;
+	  } else {
+
+	    $uid = $user->id;
+
+	    if ($user->firstname !== $extuser['nickname']) {
+	      // use set_field to avoid having to re-addslashes on every field
+	      // and re-update the whole record
+	      set_field('user', 'firstname', addslashes($extuser['nickname']), 'id', $uid);
+	    }
+	    
+	    if ($user->idnumber !== $pkey_hash) {
+	      set_field('user', 'idnumber', addslashes($pkey_hash), 'id', $uid);
+	    }
+	  }
+	  return $uid;
+	}
+
+	function compute_pkey_hash($pkey) {
+	  return sha1($pkey);
+	}
+
+	// read new accounts in from idmgr
+	// if $fast=true then use a simple strategy
+	// that only creates new accounts
+	function idmgr_sync($fast=false) {
+	  global $CFG;
+
+	  if (empty($CFG->olpcxsdb) || !file_exists($CFG->olpcxsdb)) {
+	    return false;
+	  }
+	  $dbh = new PDO('sqlite:' . $CFG->olpcxsdb);
+
+	  //
+	  // new accounts to create...
+	  //
+	  $sql = 'SELECT *
+                  FROM laptops';
+	  $tslastrun = get_config('enrol/olpcxs', 'idmgr_sync_ts');
+	  $tsnow   = time();
+	  if ($fast && !empty($tslastrun)) {
+	    $sql .= " WHERE lastmodified >= '"
+	      . gmdate('Y-m-d H:i:s', $tslastrun) ."'";
+	  }
+
+	  $rs = $dbh->query($sql);
+	  foreach ($rs as $idmgruser) {
+	    $this->create_update_user($idmgruser);
+	  }
+
+	  set_config('idmgr_sync_ts', $tsnow, 'enrol/olpcxs');
+	  unset($dbh); unset($rs);
+
+	  //
+	  // TODO - consider cleanup account scenario...?
+	  //
+	}
+
+
+	function cron() {
+	  $this->idmgr_sync();
 	}
 
 	function user_login ($username, $password) {
