@@ -215,6 +215,9 @@ global $HTTPSPAGEREQUIRED;
     require_once($CFG->libdir .'/moodlelib.php');       // Other general-purpose functions
     require_once($CFG->libdir .'/eventslib.php');       // Events functions
     require_once($CFG->libdir .'/grouplib.php');        // Groups functions
+    if (file_exists($CFG->libdir .'/local/lib.php')) {
+        require_once($CFG->libdir .'/local/lib.php');
+    }
 
     //point pear include path to moodles lib/pear so that includes and requires will search there for files before anywhere else
     //the problem is that we need specific version of quickforms and hacked excel files :-(
