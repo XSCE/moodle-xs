@@ -20,6 +20,8 @@ if (file_exists('/etc/sysconfig/xs_domain_name')) {
 $CFG->dirroot   = '/var/www/moodle/web';
 $CFG->dataroot  = '/var/lib/moodle';
 
+$CFG->dsbackupdir = '/library/users/';
+
 $CFG->directorypermissions = 02777;
 
 $CFG->admin = 'admin';
