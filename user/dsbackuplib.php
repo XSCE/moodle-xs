@@ -71,11 +71,14 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
     // Here we add the urlencoded title, which
     // feeds nicely into the "Download completed"
     // dialog in Browse.xo
+    // ACTUALLY, non-ASII titles break Browse.xo
+    //           so very nice, but no :-(
     echo '<li>'
       . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php/"
-      . urlencode($md['title']) 
-      . "?id={$userid};courseid={$courseid}&amp;snapshot="
-      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($filename) . '">'
+      // . urlencode($md['title'])
+      . 'Activity+Backup'  // don't localise!
+      . "?id={$userid}&amp;courseid={$courseid}&amp;snapshot="
+      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($filename) . '">'      
       . s($md['title'])
       . '</a> '
       . '(' . s($md['mtime']) . ')';
