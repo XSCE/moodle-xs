@@ -8,7 +8,9 @@
     require_once(dirname(__FILE__) . '/dsbackuplib.php');
     $id        = optional_param('id',     0,      PARAM_INT);   // user id
     $course    = optional_param('course', SITEID, PARAM_INT);   // course id (defaults to Site)
-    $snapshot  = optional_param('snapshot', '', PARAM_RAW);     // manual cleanup later
+    $snapshot    = optional_param('snapshot', '', PARAM_RAW);     // manual cleanup later
+    $restorefile = optional_param('restorefile', '', PARAM_FILE); // filename
+    
 
 
     if (empty($id)) {         // See your own profile by default
@@ -58,6 +60,14 @@
       }
     }
 
+/// Serve the file to restore if we have it
+    if (!empty($restorefile) && !empty($snapshot)) {
+      ds_serve_file($user, $snapshot, $restorefile);
+      exit;
+    }
+
+
+
 /// We've established they can see the user's name at least, so what about the rest?
 
     $navlinks[] = array('name' => $fullname, 'link' => null, 'type' => 'misc');
@@ -95,14 +105,11 @@
     }
 
 
-
-
 /// What snapshot are we showing?
     $latest = false;
     if (empty($snapshot)) {
         $latest = true;
     }
-
 
 
 /// Print tabs at top
@@ -119,7 +126,7 @@
     echo '<td >';
     p(get_string('snapshot_taken'));
     if ($latest) {
-      print_dsdir($user->username, 'datastore-latest', $user->id, $course->id);
+      ds_print_dir($user->username, 'datastore-latest', $user->id, $course->id);
     }
     echo '</td><td class="content">';
     echo '</tr></table>';

@@ -1,6 +1,6 @@
 <?php
 
-function print_dsdir($username, $dsdir, $userid, $courseid) {
+function ds_print_dir($username, $dsdir, $userid, $courseid) {
   global $CFG;
 
   $dspath = implode('/', array($CFG->dsbackupdir, $username, $dsdir, '/store'));
@@ -67,9 +67,15 @@ function print_dsdir($username, $dsdir, $userid, $courseid) {
 	$md['title'] = get_string('activitybackup_notitle', 'olpcxs');
       }
     }
+
+    // Here we add the urlencoded title, which
+    // feeds nicely into the "Download completed"
+    // dialog in Browse.xo
     echo '<li>'
-      . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?id={$userid};courseid={$courseid};dsdir="
-      . urlencode($dsdir) . ';restorefile=' .urlencode($filename) . '">'
+      . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php/"
+      . urlencode($md['title']) 
+      . "?id={$userid};courseid={$courseid}&amp;snapshot="
+      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($filename) . '">'
       . s($md['title'])
       . '</a> '
       . '(' . s($md['mtime']) . ')';
@@ -122,6 +128,22 @@ function print_userhome($userhome, $path) {
       . "</a></li>\n";
   }
   echo '</ul>';
+}
+
+function ds_serve_file($user, $snapshot, $restorefile) {
+  global $CFG;
+  $filepath = implode('/', array($CFG->dsbackupdir, $user->username, $snapshot, 'store'));
+
+  if (!file_exists($filepath)) {
+    error("The file $filepath does not exist");
+  }
+
+  $jeb = make_journal_entry_bundle($filepath, $restorefile);
+  header("Content-Type: application/vnd.olpc-journal-entry");
+  header("Content-Length: " . filesize($jeb));
+  $fp = fopen($jeb, 'rb');
+  fpassthru($fp);
+  exit;
 }
 
 ?>
