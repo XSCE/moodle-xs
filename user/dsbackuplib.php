@@ -31,9 +31,15 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
   echo $baseurl . dirname($_SERVER['PATH_INFO']);
   echo '">View all snapshots</a></p>';
 
+  // First, we read all the entries
+  // into an array - this is a waste of mem
+  // but php's opendir/readdir knows notink
+  // about sorting.
+  // OMG `ls -t1`
   if (! $dsdh = opendir($dspath)) {
     error("Problem opening $dspath");
   }
+  $dirents = array();
   while ($direntry = readdir($dsdh)) {
     // we will only look at metadata files,
     // capturing the "root" filename match
@@ -67,6 +73,24 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
 	$md['title'] = get_string('activitybackup_notitle', 'olpcxs');
       }
     }
+    $md['fname'] = $filename;
+    $dirents[] = $md;
+  }
+  closedir($dsdh);
+
+  // my kingdom for a lambda
+  function ds_print_dir_sorter($a, $b) {
+    $av = (int)$a['mtime'];
+    $bv = (int)$b['mtime'];
+
+    if ($av == $bv) {
+        return 0;
+    }
+    return ($av < $bv) ? 1 : -1;
+  }
+  usort($dirents, 'ds_print_dir_sorter');
+
+  foreach ($dirents AS $md) {
 
     // Here we add the urlencoded title, which
     // feeds nicely into the "Download completed"
