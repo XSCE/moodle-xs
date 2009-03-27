@@ -18,37 +18,40 @@ function timestamp_to_elapsed_string($from_time, $to_time = 0, $include_seconds 
       return ($distance_in_minutes == 0) ? 'less than a minute' : '1 minute';
     } else {
       if ($distance_in_seconds >= 0 and $distance_in_seconds <= 4) {
-	return 'less than 5 seconds';
+	return get_string('lessthan5s', 'timedistances');
       } elseif ($distance_in_seconds >= 5 and $distance_in_seconds <= 9) {
-	return 'less than 10 seconds';
+	return get_string('lessthan10s', 'timedistances');
       } elseif ($distance_in_seconds >= 10 and $distance_in_seconds <= 19) {
-	return 'less than 20 seconds';
+	return get_string('lessthan20s', 'timedistances');
       } elseif ($distance_in_seconds >= 20 and $distance_in_seconds <= 39) {
-	return 'half a minute';
+	return  get_string('halfminute', 'timedistances');
       } elseif ($distance_in_seconds >= 40 and $distance_in_seconds <= 59) {
-	return 'less than a minute';
+	return get_string('lessthan1m', 'timedistances');
       } else {
-	return '1 minute';
+	return '1 ' . get_string('minute', 'timedistances');
       }
     }
   } elseif ($distance_in_minutes >= 2 and $distance_in_minutes <= 44) {
-    return $distance_in_minutes . ' minutes';
+    return $distance_in_minutes . ' ' . get_string('minutes', 'timedistances');
   } elseif ($distance_in_minutes >= 45 and $distance_in_minutes <= 89) {
-    return 'about 1 hour';
+    return get_string('aprox', 'timedistances') . ' 1 ' . get_string('hour', 'timedistances');
   } elseif ($distance_in_minutes >= 90 and $distance_in_minutes <= 1439) {
-    return 'about ' . round(floatval($distance_in_minutes) / 60.0) . ' hours';
+    return get_string('aprox', 'timedistances') . ' ' . round(floatval($distance_in_minutes) / 60.0)
+      . ' ' . get_string('hours', 'timedistances');
   } elseif ($distance_in_minutes >= 1440 and $distance_in_minutes <= 2879) {
-    return '1 day';
+    return '1 ' . get_string('day', 'timedistances');
   } elseif ($distance_in_minutes >= 2880 and $distance_in_minutes <= 43199) {
-    return 'about ' . round(floatval($distance_in_minutes) / 1440) . ' days';
+    return get_string('aprox', 'timedistances') . ' ' . round(floatval($distance_in_minutes) / 1440)
+      . ' ' . get_string('days', 'timedistances');
   } elseif ($distance_in_minutes >= 43200 and $distance_in_minutes <= 86399) {
-    return 'about 1 month';
+    return get_string('aprox', 'timedistances') . ' 1 ' . get_string('month', 'timedistances');
   } elseif ($distance_in_minutes >= 86400 and $distance_in_minutes <= 525599) {
-    return round(floatval($distance_in_minutes) / 43200) . ' months';
+    return round(floatval($distance_in_minutes) / 43200) . ' ' . get_string('months', 'timedistances');
   } elseif ($distance_in_minutes >= 525600 and $distance_in_minutes <= 1051199) {
-    return 'about 1 year';
+    return get_string('aprox', 'timedistances') . ' 1 ' . get_string('year', 'timedistances');
   } else {
-    return 'over ' . round(floatval($distance_in_minutes) / 525600) . ' years';
+    return get_string('morethan', 'timedistances'). ' ' . round(floatval($distance_in_minutes) / 525600)
+      . ' '. get_string('years', 'timedistances');
   }
   }
 
