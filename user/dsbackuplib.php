@@ -80,8 +80,9 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
       . "?id={$userid}&amp;courseid={$courseid}&amp;snapshot="
       . urlencode($dsdir) . '&amp;restorefile=' .urlencode($filename) . '">'      
       . s($md['title'])
-      . '</a> '
-      . '(' . s($md['mtime']) . ')';
+      . '</a> &#8212; ' // emdash
+      . s(timestamp_to_elapsed_string(strtotime($md['mtime']), time()) 
+	  . ' ' . get_string('ago', 'timedistances'));
 
     /* TODO: something nice with the 'buddies'
        info we have 
@@ -102,6 +103,18 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
   }
   echo '</ul>';
 }
+
+// convert ugly ds timestamps to
+// elapsed-time strings
+function dsts_to_elapsed_string($dsts) {
+  if (preg_match('^(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/', $dsts)) {
+    $epoch = mktime($match[4], $match[5], $match[2], $match[3], $match[1]);
+    return timestamp_to_elapsed_string($epoch, time());
+  } else {
+    mdie("Datastore timestamp string does not match dsts format");
+  }
+}
+
 
 function print_userhome($userhome, $path) {
   global $baseurl;
