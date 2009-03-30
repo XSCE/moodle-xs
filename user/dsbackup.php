@@ -10,6 +10,7 @@
     $course    = optional_param('course', SITEID, PARAM_INT);   // course id (defaults to Site)
     $snapshot    = optional_param('snapshot', '', PARAM_RAW);     // manual cleanup later
     $restorefile = optional_param('restorefile', '', PARAM_FILE); // filename
+    $snapshotlist=optional_param('snapshotlist', 0, PARAM_BOOL);
     
 
 
@@ -118,25 +119,20 @@
     $showroles = 1;
     include('tabs.php');
 
-
-
-
     echo '<table width="90%" class="userinfobox" summary="">';
     echo '<tr>';
-    echo '<td >';
-    p(get_string('snapshot_taken'));
-    if ($latest) {
-      ds_print_dir($user->username, 'datastore-latest', $user->id, $course->id);
+    echo '<td class="content">';
+    if ($snapshotlist) {
+      ds_print_snapshotlist($user, $course);
+    } elseif ($latest) {
+      ds_print_dir($user, 'datastore-latest', $course);
+    } elseif($snapshot) {
+      ds_print_dir($user, $snapshot, $course);
     }
-    echo '</td><td class="content">';
-    echo '</tr></table>';
+
+    echo '</td></tr></table>';
 
     print_footer($course);
 
-/// Functions ///////
-
-function print_row($left, $right) {
-    echo "\n<tr><td class=\"label c0\">$left</td><td class=\"info c1\">$right</td></tr>\n";
-}
 
 ?>

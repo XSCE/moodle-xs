@@ -1,11 +1,9 @@
 <?php
 
-function ds_print_dir($username, $dsdir, $userid, $courseid) {
+function ds_print_dir($user, $dsdir, $course) {
   global $CFG;
 
-  $dspath = implode('/', array($CFG->dsbackupdir, $username, $dsdir, '/store'));
-
-  echo '<ul>';
+  $dspath = implode('/', array($CFG->dsbackupdir, $user->username, $dsdir, '/store'));
 
   $latest = false;
   $dsbasepath = dirname($dspath);
@@ -15,21 +13,20 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
   }
 
   // Extract UTC datestamp
-  // For Later - regex and mktime() lines to get epoch:
-  // '/^datastore-(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/'
-  // $epoch = mktime($match[4], $match[5], $match[2], $match[3], $match[1]);
-  if (!preg_match('/^datastore-(\d{4}-\d{2}-\d{2}_\d{2}:\d{2})$/',
+  if (!preg_match('/^datastore-(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/',
 		  basename($dsbasepath), $match)) {
     error("Malformed datastore directory - " . $dsbasepath);
   }
-  $timestamp = $match[1];
-  echo "<p>Snapshot taken at $timestamp";
+
+  $epoch = mktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
+  echo '<p>';
+  echo get_string('backuptakenat', 'olpcxs') . ' ';
+  echo timestamp_to_elapsed_string($epoch, time()) . ' ' . get_string('ago','timedistances').'. ';
   if ($latest) {
-    echo "- this is the most recent snapshot taken";
+    echo get_string('thisislatestbackup', 'olpcxs') . ' ';
   }
-  echo '. <a href="';
-  echo $baseurl . dirname($_SERVER['PATH_INFO']);
-  echo '">View all snapshots</a></p>';
+  echo "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?id={$user->id}&amp;courseid={$course->id}&amp;snapshotlist=1\">";
+  echo get_string('showallbackups', 'olpcxs') . '</a></p>';
 
   // First, we read all the entries
   // into an array - this is a waste of mem
@@ -80,8 +77,8 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
 
   // my kingdom for a lambda
   function ds_print_dir_sorter($a, $b) {
-    $av = (int)$a['mtime'];
-    $bv = (int)$b['mtime'];
+    $av = (int)$a['timestamp'];
+    $bv = (int)$b['timestamp'];
 
     if ($av == $bv) {
         return 0;
@@ -90,6 +87,7 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
   }
   usort($dirents, 'ds_print_dir_sorter');
 
+  echo '<ul>';
   foreach ($dirents AS $md) {
 
     // Here we add the urlencoded title, which
@@ -101,8 +99,8 @@ function ds_print_dir($username, $dsdir, $userid, $courseid) {
       . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php/"
       // . urlencode($md['title'])
       . 'Activity+Backup'  // don't localise!
-      . "?id={$userid}&amp;courseid={$courseid}&amp;snapshot="
-      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($filename) . '">'      
+      . "?id={$user->id}&amp;courseid={$course->id}&amp;snapshot="
+      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($md['fname']) . '">'      
       . s($md['title'])
       . '</a> &#8212; ' // emdash
       . s(timestamp_to_elapsed_string(strtotime($md['mtime']), time()) 
@@ -166,6 +164,55 @@ function print_userhome($userhome, $path) {
     echo "<li><a href=\"{$baseurl}/{$uid}/{$direntry}\">"
       . $direntry
       . "</a></li>\n";
+  }
+  echo '</ul>';
+}
+
+function ds_print_snapshotlist($user, $course) {
+  global $CFG;
+
+  $dspath = implode('/', array($CFG->dsbackupdir, $user->username));
+
+  // First, we read all the entries
+  // into an array - this is a waste of mem
+  // but php's opendir/readdir knows notink
+  // about sorting.
+  // OMG `ls -t1`
+  if (! $dsdh = opendir($dspath)) {
+    error("Problem opening $dspath");
+  }
+
+  $dirents = array();
+  while ($direntry = readdir($dsdh)) {
+    if (!preg_match('/^datastore-(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/',$direntry, $match)) {
+      continue;
+    }
+    $epoch = mktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
+    $strtime = timestamp_to_elapsed_string($epoch, time());
+    $dirents[] = array($direntry, $strtime);
+  }
+  closedir($dsdh);
+
+  // my kingdom for a lambda
+  function ds_print_snapshotlist_sorter($a, $b) {
+    $av = $a[0];
+    $bv = $b[0];
+
+    if ($av == $bv) {
+        return 0;
+    }
+    return ($av < $bv) ? 1 : -1;
+  }
+  usort($dirents, 'ds_print_snapshotlist_sorter');
+
+  echo '<ul>';
+  foreach ($dirents AS $d) {
+    echo '<li>'
+      . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?"
+      . "id={$user->id}&amp;courseid={$course->id}&amp;"
+      . "snapshot={$d[0]}\" >"
+      . s($d[1] . ' ' .get_string('ago', 'timedistances')) 
+      . '</a></li>';
   }
   echo '</ul>';
 }
