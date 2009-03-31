@@ -215,8 +215,8 @@ global $HTTPSPAGEREQUIRED;
     require_once($CFG->libdir .'/moodlelib.php');       // Other general-purpose functions
     require_once($CFG->libdir .'/eventslib.php');       // Events functions
     require_once($CFG->libdir .'/grouplib.php');        // Groups functions
-    if (file_exists($CFG->libdir .'/local/lib.php')) {
-        require_once($CFG->libdir .'/local/lib.php');
+    if (file_exists($CFG->dirroot .'/local/lib.php')) {
+        require_once($CFG->dirroot .'/local/lib.php');
     }
 
     //point pear include path to moodles lib/pear so that includes and requires will search there for files before anywhere else
