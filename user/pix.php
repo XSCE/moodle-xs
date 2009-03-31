@@ -45,9 +45,15 @@
 	      $f2_fpath_tmp  = tempnam($userdir, 'tmp-f2-');
 
 	      // do it atomically
+	      // note: We say (exec() || true) because we want to
+	      //       avoid output to the html stream, and yet we want
+	      //       the exit code. exec() will return the last line of
+	      //       STDOUT, which is not very useful.
 	      file_put_contents($svg_fpath_tmp, $svg_xml)
-		&& ( system("/usr/bin/rsvg-convert -f png -w 100 -h 100 -o $f1_fpath_tmp $svg_fpath_tmp") !== FALSE )
-		&& ( system("/usr/bin/rsvg-convert -f png -w 35  -h 35  -o $f2_fpath_tmp $svg_fpath_tmp") !== FALSE )
+		&& ( (exec("/usr/bin/rsvg-convert -f png -w 100 -h 100 -o $f1_fpath_tmp $svg_fpath_tmp", $output, $exitval) || true)
+		    && $exitval === 0 )
+		&& ( (exec("/usr/bin/rsvg-convert -f png -w 35  -h 35  -o $f2_fpath_tmp $svg_fpath_tmp", $output, $exitval) || true)
+		    && $exitval === 0)
 		&& chmod($f1_fpath_tmp,  0755)
 		&& chmod($f2_fpath_tmp,  0755)
 		&& chmod($svg_fpath_tmp, 0755)
