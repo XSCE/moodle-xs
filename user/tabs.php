@@ -175,7 +175,9 @@
             $toprow[] = new tabobject('notes', $CFG->wwwroot.'/notes/index.php?course='.$course->id . '&amp;user=' . $user->id, get_string('notes', 'notes'));
         }
 
-	if ($user->id == $USER->id || has_capability('moodle/user:viewbackup', $systemcontext) || has_capability('moodle/user:viewbackup', $personalcontext) ) { 
+	if ($user->auth==='olpcxs' && ( $user->id == $USER->id
+					|| has_capability('moodle/user:viewbackup', $systemcontext)
+					|| has_capability('moodle/user:viewbackup', $personalcontext) )) { 
             $toprow[] = new tabobject('backup', $CFG->wwwroot.'/user/dsbackup.php?id='.$user->id.'&amp;courseid='.$course->id, get_string('backup'));
         }
 
