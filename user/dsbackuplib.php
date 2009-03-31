@@ -77,8 +77,8 @@ function ds_print_dir($user, $dsdir, $course) {
 
   // my kingdom for a lambda
   function ds_print_dir_sorter($a, $b) {
-    $av = (int)$a['timestamp'];
-    $bv = (int)$b['timestamp'];
+    $av = array_key_exists('timestamp', $a) ? (int)$a['timestamp'] : 0;
+    $bv = array_key_exists('timestamp', $b) ? (int)$b['timestamp'] : 0;
 
     if ($av == $bv) {
         return 0;
