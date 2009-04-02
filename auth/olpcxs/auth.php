@@ -55,6 +55,15 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	      }
 	    }
 
+	    // Check if this account should be aliased to a different one...
+	    $user_alias = get_record('user_preferences', 'name', 'olpcxs_alias',
+				     'value', "$user->id");
+	    if ($user_alias) {
+	      $olduser = $user;
+	      $user = get_record('user', 'id', $user_alias->userid);
+	      add_to_log(SITEID, 'user', 'login_alias', "../user/view.php?user={$user->id}", "ids:{$olduser->id} -> {$user->id}");
+	    }
+
 	    //
 	    // we have the user acct, complete login dance now
 	    //
@@ -102,6 +111,8 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 	    // complete login
 	    $USER = get_complete_user_data('id', $user->id);
 	    complete_user_login($USER);
+
+	    add_to_log(SITEID, 'user', 'login', "../user/view.php?user={$user->id}", 'autologin');
 
 	    // redirect
 	    if (isset($SESSION->wantsurl) and (strpos($SESSION->wantsurl, $CFG->wwwroot) === 0)) {
