@@ -46,8 +46,6 @@
     require_login();
 
     $strpersonalprofile = get_string('personalprofile');
-    $strparticipants = get_string("participants");
-    $struser = get_string("user");
 
     $fullname = fullname($user, has_capability('moodle/site:viewfullnames', $coursecontext));
 
@@ -66,8 +64,6 @@
       ds_serve_file($user, $snapshot, $restorefile);
       exit;
     }
-
-
 
 /// We've established they can see the user's name at least, so what about the rest?
 
@@ -89,20 +85,13 @@
 
     add_to_log($course->id, "user", "viewbackup", "dsbackup.php?id=$user->id&course=$course->id", "$user->id");
 
-    if ($course->id != SITEID) {
-        $user->lastaccess = false;
-        if ($lastaccess = get_record('user_lastaccess', 'userid', $user->id, 'courseid', $course->id)) {
-            $user->lastaccess = $lastaccess->timeaccess;
-        }
-    }
-
 /// Base dir for this user
     if ($user->auth != 'olpcxs') {
         print_error('nobackupsforuser');
     }
     $basedir = $CFG->dsbackupdir . '/' . $user->username;
     if (!file_exists($basedir)) {
-        print_error('nobackupsforuser');
+      print_error('nobackupsforuser', 'olpcxs');
     }
 
 
