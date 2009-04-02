@@ -178,7 +178,11 @@
 	if ($user->auth==='olpcxs' && ( $user->id == $USER->id
 					|| has_capability('moodle/user:viewbackup', $systemcontext)
 					|| has_capability('moodle/user:viewbackup', $personalcontext) )) { 
-            $toprow[] = new tabobject('backup', $CFG->wwwroot.'/user/dsbackup.php?id='.$user->id.'&amp;courseid='.$course->id, get_string('backup'));
+            $toprow[] = new tabobject('backup', $CFG->wwwroot.'/user/dsbackup.php?id='.$user->id.'&amp;course='.$course->id, get_string('backup'));
+        }
+
+	if ($user->auth==='olpcxs' && has_capability('moodle/user:editaliases', $systemcontext)) {
+	  $toprow[] = new tabobject('aliases', $CFG->wwwroot.'/user/aliases.php?id='.$user->id.'&amp;course='.$course->id, get_string('aliases', 'olpcxs'));
         }
 
     /// Current user must be teacher of the course or the course allows user to view their reports
