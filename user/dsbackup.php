@@ -11,7 +11,7 @@
     $snapshot    = optional_param('snapshot', '', PARAM_RAW);     // manual cleanup later
     $restorefile = optional_param('restorefile', '', PARAM_FILE); // filename
     $snapshotlist=optional_param('snapshotlist', 0, PARAM_BOOL);
-    
+    $aliasuserid = optional_param('aliasuserid', 0, PARAM_INT);
 
 
     if (empty($id)) {         // See your own profile by default
@@ -59,9 +59,26 @@
       }
     }
 
+// if the user has an olpcxs_alias preference
+// we use it to validate the $aliasuserid param --
+    $useralias_pref = (int)get_user_preferences('olpcxs_alias', 0, $user->id);
+    if ($useralias_pref > 0) {
+      $aliasuser = get_record('user', 'id', $useralias_pref);
+      if ( $useralias_pref !== (int)$aliasuserid) {
+	$aliasuserid = null;
+      }
+    } else {
+      $aliasuser = null;
+      $aliasuserid = null;
+    }
+
 /// Serve the file to restore if we have it
     if (!empty($restorefile) && !empty($snapshot)) {
-      ds_serve_file($user, $snapshot, $restorefile);
+      if ($aliasuserid) {
+	ds_serve_file($aliasuser, $snapshot, $restorefile);
+      } else {
+	ds_serve_file($user, $snapshot, $restorefile);
+      }
       exit;
     }
 
@@ -112,11 +129,23 @@
     echo '<tr>';
     echo '<td class="content">';
     if ($snapshotlist) {
-      ds_print_snapshotlist($user, $course);
+      if ($aliasuser) {
+	ds_print_snapshotlist($user, $aliasuser, $course);
+	echo '</td><td>';
+      }
+      ds_print_snapshotlist($user, null, $course);
     } elseif ($latest) {
-      ds_print_dir($user, 'datastore-latest', $course);
+      if ($aliasuser) {
+	ds_print_dir($user, $aliasuser, 'datastore-latest', $course);
+	echo '<hr />';
+      }
+      ds_print_dir($user, null,       'datastore-latest', $course);
     } elseif($snapshot) {
-      ds_print_dir($user, $snapshot, $course);
+      if ($aliasuserid) { // requested a snapshot from the alias...
+	ds_print_dir($user, $aliasuser, $snapshot, $course);
+      } else {
+	ds_print_dir($user, null, $snapshot, $course);
+      }
     }
 
     echo '</td></tr></table>';

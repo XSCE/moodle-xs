@@ -1,9 +1,15 @@
 <?php
 
-function ds_print_dir($user, $dsdir, $course) {
+function ds_print_dir($user, $aliasuser, $dsdir, $course) {
   global $CFG;
 
-  $dspath = implode('/', array($CFG->dsbackupdir, $user->username, $dsdir, '/store'));
+  if ($aliasuser) {
+    $dspath = implode('/', array($CFG->dsbackupdir, $aliasuser->username, $dsdir, '/store'));
+    $aliasparam = '&amp;aliasuserid=' . $aliasuser->id;
+  } else {
+    $dspath = implode('/', array($CFG->dsbackupdir, $user->username, $dsdir, '/store'));
+    $aliasparam = '';
+  }
 
   $latest = false;
   $dsbasepath = dirname($dspath);
@@ -25,7 +31,9 @@ function ds_print_dir($user, $dsdir, $course) {
   if ($latest) {
     echo get_string('thisislatestbackup', 'olpcxs') . ' ';
   }
-  echo "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?id={$user->id}&amp;courseid={$course->id}&amp;snapshotlist=1\">";
+  echo "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?"
+    . "id={$user->id}&amp;courseid={$course->id}"
+    . "&amp;snapshotlist=1\">";
   echo get_string('showallbackups', 'olpcxs') . '</a></p>';
 
   // First, we read all the entries
@@ -75,16 +83,6 @@ function ds_print_dir($user, $dsdir, $course) {
   }
   closedir($dsdh);
 
-  // my kingdom for a lambda
-  function ds_print_dir_sorter($a, $b) {
-    $av = array_key_exists('timestamp', $a) ? (int)$a['timestamp'] : 0;
-    $bv = array_key_exists('timestamp', $b) ? (int)$b['timestamp'] : 0;
-
-    if ($av == $bv) {
-        return 0;
-    }
-    return ($av < $bv) ? 1 : -1;
-  }
   usort($dirents, 'ds_print_dir_sorter');
 
   echo '<ul>';
@@ -99,8 +97,10 @@ function ds_print_dir($user, $dsdir, $course) {
       . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php/"
       // . urlencode($md['title'])
       . 'Activity+Backup'  // don't localise!
-      . "?id={$user->id}&amp;courseid={$course->id}&amp;snapshot="
-      . urlencode($dsdir) . '&amp;restorefile=' .urlencode($md['fname']) . '">'      
+      . "?id={$user->id}&amp;courseid={$course->id}"
+      . $aliasparam
+      . "&amp;snapshot=" . urlencode($dsdir)
+      . '&amp;restorefile=' .urlencode($md['fname']) . '">'      
       . s($md['title'])
       . '</a> &#8212; ' // emdash
       . s(timestamp_to_elapsed_string(strtotime($md['mtime']), time()) 
@@ -125,6 +125,16 @@ function ds_print_dir($user, $dsdir, $course) {
   }
   echo '</ul>';
 }
+// my kingdom for a lambda
+function ds_print_dir_sorter($a, $b) {
+  $av = array_key_exists('timestamp', $a) ? (int)$a['timestamp'] : 0;
+  $bv = array_key_exists('timestamp', $b) ? (int)$b['timestamp'] : 0;
+
+  if ($av == $bv) {
+    return 0;
+  }
+  return ($av < $bv) ? 1 : -1;
+}
 
 // convert ugly ds timestamps to
 // elapsed-time strings
@@ -137,41 +147,16 @@ function dsts_to_elapsed_string($dsts) {
   }
 }
 
-
-function print_userhome($userhome, $path) {
-  global $baseurl;
-
-  $uid = basename($path);
-
-  echo '<h1>Snapshot listing for user ' . $uid . '</h1>';
-  echo '<p>Times are in UTC</p>';
-  echo '<ul>';
-
-  // Extract UTC datestamp
-
-
-
-  while ($direntry = readdir($userhome)) {
-
-    if (!is_dir($path.'/'.$direntry)) {
-      continue;
-    }
-
-    if (!preg_match('/^datastore-(\d{4}-\d{2}-\d{2}_\d{2}:\d{2})$/',
-		    $direntry, $match)) {
-      continue;
-    }
-    echo "<li><a href=\"{$baseurl}/{$uid}/{$direntry}\">"
-      . $direntry
-      . "</a></li>\n";
-  }
-  echo '</ul>';
-}
-
-function ds_print_snapshotlist($user, $course) {
+function ds_print_snapshotlist($user, $aliasuser, $course) {
   global $CFG;
 
-  $dspath = implode('/', array($CFG->dsbackupdir, $user->username));
+  if ($aliasuser) {
+    $dspath = implode('/', array($CFG->dsbackupdir, $aliasuser->username));
+    $aliasparam = '&amp;aliasuserid=' . $aliasuser->id;
+  } else {
+    $dspath = implode('/', array($CFG->dsbackupdir, $user->username));
+    $aliasparam = '';
+  }
 
   // First, we read all the entries
   // into an array - this is a waste of mem
@@ -193,30 +178,31 @@ function ds_print_snapshotlist($user, $course) {
   }
   closedir($dsdh);
 
-  // my kingdom for a lambda
-  function ds_print_snapshotlist_sorter($a, $b) {
-    $av = $a[0];
-    $bv = $b[0];
-
-    if ($av == $bv) {
-        return 0;
-    }
-    return ($av < $bv) ? 1 : -1;
-  }
   usort($dirents, 'ds_print_snapshotlist_sorter');
 
   echo '<ul>';
   foreach ($dirents AS $d) {
     echo '<li>'
       . "<a href=\"{$CFG->wwwroot}/user/dsbackup.php?"
-      . "id={$user->id}&amp;courseid={$course->id}&amp;"
-      . "snapshot={$d[0]}\" >"
+      . "id={$user->id}&amp;courseid={$course->id}"
+      . $aliasparam
+      . "&amp;snapshot={$d[0]}\" >"
       . s($d[1] . ' ' .get_string('ago', 'timedistances')) 
       . '</a></li>';
   }
   echo '</ul>';
 }
 
+// my kingdom for a lambda
+function ds_print_snapshotlist_sorter($a, $b) {
+  $av = $a[0];
+  $bv = $b[0];
+  
+  if ($av == $bv) {
+    return 0;
+  }
+  return ($av < $bv) ? 1 : -1;
+}
 function ds_serve_file($user, $snapshot, $restorefile) {
   global $CFG;
   $filepath = implode('/', array($CFG->dsbackupdir, $user->username, $snapshot, 'store'));
