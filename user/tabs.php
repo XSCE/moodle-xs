@@ -176,12 +176,12 @@
         }
 
 	if ($user->auth==='olpcxs' && ( $user->id == $USER->id
-					|| has_capability('moodle/user:viewbackup', $systemcontext)
-					|| has_capability('moodle/user:viewbackup', $personalcontext) )) { 
+					|| has_capability('moodle/local:viewbackup', $systemcontext)
+					|| has_capability('moodle/local:viewbackup', $personalcontext) )) { 
             $toprow[] = new tabobject('backup', $CFG->wwwroot.'/user/dsbackup.php?id='.$user->id.'&amp;course='.$course->id, get_string('backup'));
         }
 
-	if ($user->auth==='olpcxs' && has_capability('moodle/user:editaliases', $systemcontext)) {
+	if ($user->auth==='olpcxs' && has_capability('moodle/local:editaliases', $systemcontext)) {
 	  $toprow[] = new tabobject('aliases', $CFG->wwwroot.'/user/aliases.php?id='.$user->id.'&amp;course='.$course->id, get_string('aliases', 'olpcxs'));
         }
 

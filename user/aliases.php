@@ -65,7 +65,7 @@
 
 /// Make sure we are allowed to do this
 
-    require_capability('moodle/user:editaliases', $systemcontext); 
+    require_capability('moodle/local:editaliases', $systemcontext); 
 
 /// Has the user got a previous alias?
     if ($alias = get_user_preferences('olpcxs_alias', false, $user->id)) {

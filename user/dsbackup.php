@@ -53,8 +53,8 @@
 
     if (!$currentuser) {
       // check capabilities
-      if (!has_capability('moodle/user:viewbackup', $systemcontext) && 
-	  !has_capability('moodle/user:viewbackup', $usercontext)) {
+      if (!has_capability('moodle/local:viewbackup', $systemcontext) && 
+	  !has_capability('moodle/local:viewbackup', $usercontext)) {
 	print_error('cannotviewbackup');
       }
     }
