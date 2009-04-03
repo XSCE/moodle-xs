@@ -122,6 +122,7 @@ fi
 %dir %{moodlewebdir}/lang
 %{moodlewebdir}/lang/*
 %{moodlewebdir}/lib
+%{moodlewebdir}/local
 %{moodlewebdir}/login
 
 %changelog
