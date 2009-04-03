@@ -30,7 +30,8 @@ Requires(preun): /sbin/service
 # rsvg-convert is used to render icons...
 Requires:       librsvg2
 
-Conflicts:      moodle
+Obsoletes:      moodle
+Provides:       moodle
 
 %description
 Cutom Moodle for the OLPC School Server.
