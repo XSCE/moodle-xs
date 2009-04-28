@@ -268,21 +268,22 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 
             // Add missing participants, remove old participants!
             $ctx = get_context_instance(CONTEXT_COURSE, $mc->id);
-            $users = get_users_by_capability($ctx, 'moodle/course:view',
+            $users = get_users_by_capability($ctx, 'moodle/local:jabberpresence',
                                              'u.id,u.username,u.idnumber', 
                                              '', '', '', '', '', false);
-
             // Note: ejabberdctl reports course members as
             // user@domain -- but expects the 2 params separate
             // when called - 
-            foreach ($users as $user) {
-                // array_search() returns int on stack-like arrays
-                $pos = array_search($user->idnumber . '@' . 'schoolserver.' . $XS_FQDN, $ejparticipants, true);
-                if (is_int($pos)) {
-                    array_splice($ejparticipants, $pos, 1);
-                } else {
-                    // add to srg
-                    $ej->srg_user_add($mc->shortname, $user->idnumber);
+            if (is_array($users)) {
+                foreach ($users as $user) {
+                    // array_search() returns int on stack-like arrays
+                    $pos = array_search($user->idnumber . '@' . 'schoolserver.' . $XS_FQDN, $ejparticipants, true);
+                    if (is_int($pos)) {
+                        array_splice($ejparticipants, $pos, 1);
+                    } else {
+                        // add to srg
+                        $ej->srg_user_add($mc->shortname, $user->idnumber);
+                    }
                 }
             }
             foreach ($ejparticipants as $ejp) {
