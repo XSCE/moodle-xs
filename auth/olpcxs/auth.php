@@ -16,6 +16,7 @@ if (!defined('MOODLE_INTERNAL')) {
 }
 
 require_once($CFG->libdir.'/authlib.php');
+require_once($CFG->libdir.'/ejabberdctl.php');
 
 /**
  * Email authentication plugin.
@@ -220,9 +221,126 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         //
 	}
 
+    function ejabberd_sync() {
+        global $CFG;
+        global $XS_FQDN;
+
+        $tslastrun = get_config('enrol/olpcxs', 'ejabberd_sync_ts', 0);
+        $tsnow   = time();
+        
+        // run first time, run roughly once a day
+        if ($tslastrun !== 0 && ($tsnow - $tslastrun) < 1 * 24 * 3600) {
+            //return true;
+        }
+
+        $ej = new ejabberdctl;
+        if (!isset($XS_FQDN)) {
+            mdie('$XS_FQDN is not set');
+        }
+        $ej->set_vhost('schoolserver.' . $XS_FQDN);
+        $ejsrg = $ej->srg_list_groups();
+        $mcourses = get_recordset('course', '','', '', 'id,shortname,fullname');
+
+        while ($mc = rs_fetch_next_record($mcourses)) {
+
+            // Skip sitecourse
+            if ($mc->id === SITEID) {
+                continue;
+            }
+
+            // array_search() returns int on stack-like arrays
+            $pos = array_search($mc->shortname, $ejsrg);
+            if (is_int($pos)) {
+                array_splice($ejsrg, $pos, 1);
+                $info = $ej->srg_get_info($mc->shortname);
+                if ($info === null) {
+                    mdie("srg_get_info failed");
+                }
+                if (empty($info['members'])) {
+                    $ejparticipants = array();
+                } else {
+                    $ejparticipants = $info['members'];
+                }
+            } else {
+                $ej->srg_create($mc->shortname, $mc->fullname);
+                $ejparticipants = array();
+            }
+
+            // Add missing participants, remove old participants!
+            $ctx = get_context_instance(CONTEXT_COURSE, $mc->id);
+            $users = get_users_by_capability($ctx, 'moodle/course:view',
+                                             'u.id,u.username,u.idnumber', 
+                                             '', '', '', '', '', false);
+
+            // Note: ejabberdctl reports course members as
+            // user@domain -- but expects the 2 params separate
+            // when called - 
+            foreach ($users as $user) {
+                // array_search() returns int on stack-like arrays
+                $pos = array_search($user->idnumber . '@' . 'schoolserver.' . $XS_FQDN, $ejparticipants, true);
+                if (is_int($pos)) {
+                    array_splice($ejparticipants, $pos, 1);
+                } else {
+                    // add to srg
+                    $ej->srg_user_add($mc->shortname, $user->idnumber);
+                }
+            }
+            foreach ($ejparticipants as $ejp) {
+                // as mentioned above, ejabberctl reports user@host but wants the
+                // params separated.
+                if (preg_match('/^(\w+)@/', $ejp, $match)) {
+                    $ej->srg_user_del($mc->shortname, $match[1]);
+                }
+            }
+        }
+        foreach ($ejsrg as $ejg) {
+            $ej->srg_delete($ejg);
+        }
+        set_config('ejabberd_sync_ts', $tsnow, 'enrol/olpcxs');
+    }
+
+    // Check and if necessary fix the Online group
+    function ejabberd_checkfixonline() {
+        global $XS_FQDN;
+
+        $ej = new ejabberdctl;
+        if (!isset($XS_FQDN)) {
+            mdie('$XS_FQDN is not set');
+        }
+        $ej->set_vhost('schoolserver.' . $XS_FQDN);
+
+        // In this mode, remove other SRGs
+        $ejsrg = $ej->srg_list_groups();
+        foreach ($ejsrg as $ejg) {
+            if ($ejg === 'Online') {
+                continue;
+            }
+            $ej->srg_delete($ejg);
+        }
+
+        // Check the Online SRG is set and configured
+        // correctly
+        $info = $ej->srg_get_info('Online');
+        if ($info === null) {
+            $ej->srg_create('Online', 'Online Group - created from moodle');
+        } else {
+            if ($info['online_users']==='true') {
+                return true;
+            }
+        }
+        $ej->srg_user_add('Online', '@online@');
+
+    }
 
 	function cron() {
+        global $CFG;
         $this->idmgr_sync();
+
+        if (!empty($CFG->jabberxs_enrolments_by_course)) {
+            $this->ejabberd_sync();
+        } else {
+            $this->ejabberd_checkfixonline();
+        }
 	}
 
 	function user_login ($username, $password) {
