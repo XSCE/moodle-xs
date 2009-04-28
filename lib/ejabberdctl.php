@@ -69,6 +69,8 @@ class ejabberdctl{
                         // what ejabberd prints is csv'ish as far as
                         // I have tested
                         $value = str_getcsv($valmatch[1]);
+                    } elseif ($key==='members') {
+                        $value = explode(' ', $value);
                     }
                     $info[$key]=$value;
                 }
@@ -98,12 +100,12 @@ class ejabberdctl{
 
     function srg_user_add($srg, $user) {
         return $this->_exec(array('srg-user-add',
-                                  $user, $this->vhost, $srg));  
+                                  $user, $this->vhost, $srg, $this->vhost));  
     }
 
-    function srg_user_delete($srg, $user) {
-        return $this->_exec(array('srg-user-delete',
-                                  $user, $this->vhost, $srg));
+    function srg_user_del($srg, $user) {
+        return $this->_exec(array('srg-user-del',
+                                  $user, $this->vhost, $srg, $this->vhost));
     }
 
     function _exec($cmdarr) {
@@ -112,7 +114,7 @@ class ejabberdctl{
         $cmd = 'sudo -u ejabberd /usr/sbin/ejabberdctl ' . implode(' ', $cmdarr);
         
         $buf = '';
-        error_log("about to exec $cmd");
+        //error_log("about to exec $cmd");
         exec($cmd, $buf, $ret);
         if ($ret === 0) {
             return $buf;
