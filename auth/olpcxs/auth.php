@@ -230,7 +230,8 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         
         // run first time, run roughly once a day
         if ($tslastrun !== 0 && ($tsnow - $tslastrun) < 1 * 24 * 3600) {
-            //return true;
+            // run everytime - until we make it event-driven
+            // return true;
         }
 
         $ej = new ejabberdctl;
