@@ -241,6 +241,13 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         $ejsrg = $ej->srg_list_groups();
         $mcourses = get_recordset('course', '','', '', 'id,shortname,fullname');
 
+        //
+        $aliasessql = "SELECT p.userid as id, p.value, u.idnumber
+                       FROM {$CFG->prefix}user_preferences p
+                       JOIN {$CFG->prefix}user u ON p.value::int = u.id
+                       WHERE p.name='olpcxs_alias' ";
+        $aliases = get_records_sql($aliasessql);
+
         while ($mc = rs_fetch_next_record($mcourses)) {
 
             // Skip sitecourse
@@ -281,13 +288,20 @@ class auth_plugin_olpcxs extends auth_plugin_base {
                         continue;
                     }
 
+                    // map to aliases...
+                    $username = $user->idnumber;
+                    if (isset($aliases[ $user->id ])) {
+                        $alias = $aliases[ $user->id ];
+                        $username = $alias->idnumber;
+                    }
+
                     // array_search() returns int on stack-like arrays
-                    $pos = array_search($user->idnumber . '@' . 'schoolserver.' . $XS_FQDN, $ejparticipants, true);
+                    $pos = array_search($username . '@' . 'schoolserver.' . $XS_FQDN, $ejparticipants, true);
                     if (is_int($pos)) {
                         array_splice($ejparticipants, $pos, 1);
                     } else {
                         // add to srg
-                        $ej->srg_user_add($mc->shortname, $user->idnumber);
+                        $ej->srg_user_add($mc->shortname, $username);
                     }
                 }
             }
