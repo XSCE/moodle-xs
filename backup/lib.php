@@ -439,7 +439,7 @@
                     print_continue($continueto);
                     print_footer('none');
                     exit;
-                } else if (CLI_UPGRADE) {
+                } else if (CLI_UPGRADE  && ($interative > CLI_SEMI)) {
                     console_write(STDOUT,'askcontinue');
                     if (read_boolean()){
                         return ;
