@@ -901,6 +901,23 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     if ($CFG->version) {
         if ($version > $CFG->version) {  // upgrade
 
+            // Upgrades: installations made with early versions of
+            // cliupgrade.php may be missing $CFG->release - and the
+            // environment checks need id. Provide an approx release
+            // string, based on the 
+            if (empty($CFG->release)) {
+                if ((int)$CFG->version >= 2007101509) {
+                    $release_to_upgrade = '1.9';
+                } elseif ((int)$CFG->version >= 2007021501) {
+                    $release_to_upgrade = '1.8';
+                }
+                if (!empty($release_to_upgrade)) {
+                    set_config('release', $release_to_upgrade);
+                    $CFG->release = $release_to_upgrade;
+                }
+            }
+
+
             /// If the database is not already Unicode then we do not allow upgrading!
             /// Instead, we print an error telling them to upgrade to 1.7 first.  MDL-6857
             if (empty($CFG->unicodedb)) {
@@ -1007,12 +1024,12 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
                 if (!stats_upgrade_for_roles_wrapper()) {
                     notify('Couldn\'t upgrade the stats tables to use the new roles system');
                 }
-                if (set_config("version", $version)) {
+                if (set_config("version", $version) && set_config("release", $release)) {
                     remove_dir($CFG->dataroot . '/cache', true); // flush cache
                     notify($strdatabasesuccess, "green");
                     /// print_continue("upgradesettings.php");
                 } else {
-                    console_write(STDERR,'Upgrade failed!  (Could not update version in config table)','',false);
+                    console_write(STDERR,'Upgrade failed!  (Could not update version or release in config table)','',false);
                 }
                 /// Main upgrade not success
             } else {
@@ -1029,6 +1046,9 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     } else {
         if (!set_config("version", $version)) {
             console_write(STDERR,"A problem occurred inserting current version into databases",'',false);
+        }
+        if (!set_config("release", $release)) {
+            console_write(STDERR,"A problem occurred inserting current release into databases",'',false);
         }
     }
 
