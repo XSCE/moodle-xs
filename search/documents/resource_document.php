@@ -44,7 +44,7 @@ class ResourceSearchDocument extends SearchDocument {
         $data = array();
         
         // construct the parent class
-        parent::__construct($doc, $data, $resource['course'], 0, 0, PATH_FOR_SEARCH_TYPE_RESOURCE);
+        parent::__construct($doc, $data, $resource['course'], 0, 0, 'mod/'.SEARCH_TYPE_RESOURCE);
     } //constructor
 } //ResourceSearchDocument
 
@@ -88,22 +88,22 @@ function resource_get_content_for_index(&$notneeded) {
             id as trueid,
             r.*
         FROM 
-            {$CFG->prefix}resource as r
+            {$CFG->prefix}resource r
         WHERE 
             alltext != '' AND 
             alltext != ' ' AND 
             alltext != '&nbsp;' AND 
             type != 'file' 
     ";
-    $resources = get_records_sql($query);
-
-    foreach($resources as $aResource){
-        $coursemodule = get_field('modules', 'id', 'name', 'resource');
-        $cm = get_record('course_modules', 'course', $aResource->course, 'module', $coursemodule, 'instance', $aResource->id);
-        $context = get_context_instance(CONTEXT_MODULE, $cm->id);
-        $aResource->id = $cm->id;
-        $documents[] = new ResourceSearchDocument(get_object_vars($aResource), $context->id);
-        mtrace("finished $aResource->name");
+    if ($resources = get_records_sql($query)){ 
+        foreach($resources as $aResource){
+            $coursemodule = get_field('modules', 'id', 'name', 'resource');
+            $cm = get_record('course_modules', 'course', $aResource->course, 'module', $coursemodule, 'instance', $aResource->id);
+            $context = get_context_instance(CONTEXT_MODULE, $cm->id);
+            $aResource->id = $cm->id;
+            $documents[] = new ResourceSearchDocument(get_object_vars($aResource), $context->id);
+            mtrace("finished $aResource->name");
+        }
     }
 
     // special physical files handling
@@ -125,9 +125,9 @@ function resource_get_content_for_index(&$notneeded) {
                r.type as type,
                r.timemodified as timemodified
             FROM 
-                {$CFG->prefix}resource as r,
-                {$CFG->prefix}course_modules as cm,
-                {$CFG->prefix}modules as m
+                {$CFG->prefix}resource r,
+                {$CFG->prefix}course_modules cm,
+                {$CFG->prefix}modules m
             WHERE 
                r.type = 'file' AND
                cm.instance = r.id AND
@@ -135,10 +135,8 @@ function resource_get_content_for_index(&$notneeded) {
                cm.module = m.id AND
                m.name = 'resource'
         ";
-        $resources = get_records_sql($query);
-        
+        if ($resources = get_records_sql($query)){        
         // invokes external content extractor if exists.
-        if ($resources){
             foreach($resources as $aResource){
                 // fetches a physical indexable document and adds it to documents passed by ref
                 $coursemodule = get_field('modules', 'id', 'name', 'resource');
@@ -237,9 +235,9 @@ function resource_single_document($id, $itemtype) {
            r.type as type,
            r.timemodified as timemodified
         FROM 
-            {$CFG->prefix}resource as r,
-            {$CFG->prefix}course_modules as cm,
-            {$CFG->prefix}modules as m
+            {$CFG->prefix}resource r,
+            {$CFG->prefix}course_modules cm,
+            {$CFG->prefix}modules m
         WHERE 
             cm.instance = r.id AND
             cm.course = r.course AND
@@ -309,6 +307,17 @@ function resource_check_text_access($path, $itemtype, $this_id, $user, $group_id
     $r = get_record('resource', 'id', $this_id);
     $module_context = get_record('context', 'id', $context_id);
     $cm = get_record('course_modules', 'id', $module_context->instanceid);
+    $course_context = get_context_instance(CONTEXT_COURSE, $r->course);
+
+    //check if course is visible
+    if (!$course->visible && !has_capability('moodle/course:viewhiddencourses', $course_context)) {
+        return false;
+    }
+
+    //check if user is registered in course or course is open to guests
+    if (!$course->guest && !has_capability('moodle/course:view', $course_context)) {
+        return false;
+    }
 
     //check if found course module is visible
     if (!$cm->visible and !has_capability('moodle/course:viewhiddenactivities', $module_context)){
@@ -323,6 +332,11 @@ function resource_check_text_access($path, $itemtype, $this_id, $user, $group_id
 * @param string $title
 */
 function resource_link_post_processing($title){
-    return mb_convert_encoding($title, 'UTF-8', 'auto');
+    global $CFG;
+    
+    if ($CFG->block_search_utf8dir){
+        return mb_convert_encoding($title, 'UTF-8', 'auto');
+    }
+    return mb_convert_encoding($title, 'auto', 'UTF-8');
 }
 ?>

@@ -1,4 +1,4 @@
-<?php
+<?php  // $Id$
 /**
  * Defines the editing form for the numerical question type.
  *
@@ -13,6 +13,18 @@
  * numerical editing form definition.
  */
 class question_edit_numerical_form extends question_edit_form {
+
+    function get_per_answer_fields(&$mform, $label, $gradeoptions, &$repeatedoptions, &$answersoption) {
+        $repeated = parent::get_per_answer_fields($mform, $label, $gradeoptions, $repeatedoptions, $answersoption);
+
+        $tolerance =& $mform->createElement('text', 'tolerance', get_string('acceptederror', 'quiz'));
+        $repeatedoptions['tolerance']['type'] = PARAM_NUMBER;
+        array_splice($repeated, 3, 0, array($tolerance));
+        $repeated[1]->setSize(10);
+
+        return $repeated;
+    }
+
     /**
      * Add question-type specific form fields.
      *
@@ -22,38 +34,8 @@ class question_edit_numerical_form extends question_edit_form {
 
 //------------------------------------------------------------------------------------------
         $creategrades = get_grade_options();
-        $gradeoptions = $creategrades->gradeoptions;
-        $repeated = array();
-        $repeatedoptions = array();
-        $repeated[] =& $mform->createElement('header', 'answerhdr', get_string('answerno', 'qtype_numerical', '{no}'));
-
-        $repeated[] =& $mform->createElement('text', 'answer', get_string('answer', 'quiz'));
-        $mform->setType('answer', PARAM_RAW);
-
-        $repeated[] =& $mform->createElement('text', 'tolerance', get_string('acceptederror', 'quiz'));
-        $mform->setType('tolerance', PARAM_NUMBER);
-
-        $repeated[] =& $mform->createElement('select', 'fraction', get_string('grade'), $gradeoptions);
-        $repeatedoptions['fraction']['default'] = 0;
-
-        $repeated[] =& $mform->createElement('htmleditor', 'feedback', get_string('feedback', 'quiz'),
-                                array('course' => $this->coursefilesid));
-        $mform->setType('feedback', PARAM_RAW);
-
-
-        if (isset($this->question->options)){
-            $countanswers = count($this->question->options->answers);
-        } else {
-            $countanswers = 0;
-        }
-        if ($this->question->formoptions->repeatelements){
-            $repeatsatstart = (QUESTION_NUMANS_START > ($countanswers + 1))?
-                                QUESTION_NUMANS_START : ($countanswers + 1);
-        } else {
-            $repeatsatstart = $countanswers;
-        }
-        $this->repeat_elements($repeated, $repeatsatstart, $repeatedoptions, 'noanswers', 'addanswers', 2, get_string('addmoreanswerblanks', 'qtype_numerical'));
-
+        $this->add_per_answer_fields($mform, get_string('answerno', 'qtype_numerical', '{no}'),
+                $creategrades->gradeoptions);
 //------------------------------------------------------------------------------------------
         $repeated = array();
         $repeated[] =& $mform->createElement('header', 'unithdr', get_string('unithdr', 'qtype_numerical', '{no}'));
@@ -77,10 +59,14 @@ class question_edit_numerical_form extends question_edit_form {
         }
         $this->repeat_elements($repeated, $repeatsatstart, array(), 'nounits', 'addunits', 2, get_string('addmoreunitblanks', 'qtype_numerical'));
 
-        $firstunit =& $mform->getElement('multiplier[0]');
-        $firstunit->freeze();
-        $firstunit->setValue('1.0');
-        $firstunit->setPersistantFreeze(true);
+        if ($mform->elementExists('multiplier[0]')) {
+        /// Does not exist when this form is used in 'move to another category'
+        /// mode with a qusetion that has no units. This was leading to errors.
+            $firstunit =& $mform->getElement('multiplier[0]');
+            $firstunit->freeze();
+            $firstunit->setValue('1.0');
+            $firstunit->setPersistantFreeze(true);
+        }
     }
 
     function set_data($question) {
@@ -129,7 +115,7 @@ class question_edit_numerical_form extends question_edit_form {
                 $answercount++;
             }
         }
-        if ($answercount==0){
+        if ($answercount == 0) {
             $errors['answer[0]'] = get_string('notenoughanswers', 'qtype_numerical');
         }
         if ($maxgrade == false) {
@@ -138,15 +124,17 @@ class question_edit_numerical_form extends question_edit_form {
 
         // Check units.
         $alreadyseenunits = array();
-        foreach ($data['unit'] as $key => $unit) {
-            $trimmedunit = trim($unit);
-            if ($trimmedunit!='' && in_array($trimmedunit, $alreadyseenunits)) {
-                $errors["unit[$key]"] = get_string('errorrepeatedunit', 'qtype_numerical');
-                if (trim($data['multiplier'][$key]) == '') {
-                    $errors["multiplier[$key]"] = get_string('errornomultiplier', 'qtype_numerical');
+        if (isset($data['unit'])) {
+            foreach ($data['unit'] as $key => $unit) {
+                $trimmedunit = trim($unit);
+                if ($trimmedunit!='' && in_array($trimmedunit, $alreadyseenunits)) {
+                    $errors["unit[$key]"] = get_string('errorrepeatedunit', 'qtype_numerical');
+                    if (trim($data['multiplier'][$key]) == '') {
+                        $errors["multiplier[$key]"] = get_string('errornomultiplier', 'qtype_numerical');
+                    }
+                } else {
+                    $alreadyseenunits[] = $trimmedunit;
                 }
-            } else {
-                $alreadyseenunits[] = $trimmedunit;
             }
         }
 

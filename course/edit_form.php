@@ -7,6 +7,7 @@ class course_edit_form extends moodleform {
     function definition() {
         global $USER, $CFG;
 
+        $courseconfig = get_config('moodlecourse');
         $mform    =& $this->_form;
 
         $course   = $this->_customdata['course'];
@@ -56,16 +57,11 @@ class course_edit_form extends moodleform {
 //--------------------------------------------------------------------------------
         $mform->addElement('header','general', get_string('general', 'form'));
 
-        //must have create course capability in both categories in order to move course
+        // Must have create course capability in both categories in order to move course
         if (has_capability('moodle/course:create', $categorycontext)) {
             $displaylist = array();
             $parentlist = array();
-            make_categories_list($displaylist, $parentlist);
-            foreach ($displaylist as $key=>$val) {
-                if (!has_capability('moodle/course:create', get_context_instance(CONTEXT_COURSECAT, $key))) {
-                    unset($displaylist[$key]);
-                }
-            }
+            make_categories_list($displaylist, $parentlist, 'moodle/course:create');
             $mform->addElement('select', 'category', get_string('category'), $displaylist);
         } else {
             $mform->addElement('hidden', 'category', null);
@@ -81,6 +77,7 @@ class course_edit_form extends moodleform {
         $mform->setType('fullname', PARAM_MULTILANG);
         if ($course and !has_capability('moodle/course:changefullname', $coursecontext)) {
             $mform->hardFreeze('fullname');
+            $mform->setConstant('fullname', $course->fullname);
         }
 
         $mform->addElement('text','shortname', get_string('shortname'),'maxlength="100" size="20"');
@@ -90,6 +87,7 @@ class course_edit_form extends moodleform {
         $mform->setType('shortname', PARAM_MULTILANG);
         if ($course and !has_capability('moodle/course:changeshortname', $coursecontext)) {
             $mform->hardFreeze('shortname');
+            $mform->setConstant('shortname', $course->shortname);
         }
 
         $mform->addElement('text','idnumber', get_string('idnumbercourse'),'maxlength="100"  size="10"');
@@ -97,6 +95,7 @@ class course_edit_form extends moodleform {
         $mform->setType('idnumber', PARAM_RAW);
         if ($course and !has_capability('moodle/course:changeidnumber', $coursecontext)) {
             $mform->hardFreeze('idnumber');
+            $mform->setConstants('idnumber', $course->idnumber);
         }
 
         $mform->addElement('htmleditor','summary', get_string('summary'), array('rows'=> '10', 'cols'=>'65'));
@@ -113,13 +112,13 @@ class course_edit_form extends moodleform {
         }
         $mform->addElement('select', 'format', get_string('format'), $formcourseformats);
         $mform->setHelpButton('format', array('courseformats', get_string('courseformats')), true);
-        $mform->setDefault('format', 'weeks');
+        $mform->setDefault('format', $courseconfig->format);
 
         for ($i=1; $i<=52; $i++) {
           $sectionmenu[$i] = "$i";
         }
         $mform->addElement('select', 'numsections', get_string('numberweeks'), $sectionmenu);
-        $mform->setDefault('numsections', 10);
+        $mform->setDefault('numsections', $courseconfig->numsections);
 
         $mform->addElement('date_selector', 'startdate', get_string('startdate'));
         $mform->setHelpButton('startdate', array('coursestartdate', get_string('startdate')), true);
@@ -130,24 +129,25 @@ class course_edit_form extends moodleform {
         $choices['1'] = get_string('hiddensectionsinvisible');
         $mform->addElement('select', 'hiddensections', get_string('hiddensections'), $choices);
         $mform->setHelpButton('hiddensections', array('coursehiddensections', get_string('hiddensections')), true);
-        $mform->setDefault('hiddensections', 0);
+        $mform->setDefault('hiddensections', $courseconfig->hiddensections);
 
         $options = range(0, 10);
         $mform->addElement('select', 'newsitems', get_string('newsitemsnumber'), $options);
         $mform->setHelpButton('newsitems', array('coursenewsitems', get_string('newsitemsnumber')), true);
-        $mform->setDefault('newsitems', 5);
+        $mform->setDefault('newsitems', $courseconfig->newsitems);
 
         $mform->addElement('selectyesno', 'showgrades', get_string('showgrades'));
         $mform->setHelpButton('showgrades', array('coursegrades', get_string('grades')), true);
-        $mform->setDefault('showgrades', 1);
+        $mform->setDefault('showgrades', $courseconfig->showgrades);
 
         $mform->addElement('selectyesno', 'showreports', get_string('showreports'));
         $mform->setHelpButton('showreports', array('coursereports', get_string('activityreport')), true);
-        $mform->setDefault('showreports', 0);
+        $mform->setDefault('showreports', $courseconfig->showreports);
 
         $choices = get_max_upload_sizes($CFG->maxbytes);
         $mform->addElement('select', 'maxbytes', get_string('maximumupload'), $choices);
         $mform->setHelpButton('maxbytes', array('courseuploadsize', get_string('maximumupload')), true);
+        $mform->setDefault('maxbytes', $courseconfig->maxbytes);
 
         if (!empty($CFG->allowcoursethemes)) {
             $themes=array();
@@ -162,7 +162,7 @@ class course_edit_form extends moodleform {
         if ($disable_meta === false) {
             $mform->addElement('select', 'metacourse', get_string('managemeta'), $meta);
             $mform->setHelpButton('metacourse', array('metacourse', get_string('metacourse')), true);
-            $mform->setDefault('metacourse', 0);
+            $mform->setDefault('metacourse', $courseconfig->metacourse);
         } else {
             // no metacourse element - we do not want to change it anyway!
             $mform->addElement('static', 'nometacourse', get_string('managemeta'),
@@ -304,11 +304,22 @@ class course_edit_form extends moodleform {
         $mform->addElement('select', 'visible', get_string('availability'), $choices);
         $mform->setHelpButton('visible', array('courseavailability', get_string('availability')), true);
         $mform->setDefault('visible', 1);
+        if ($course and !has_capability('moodle/course:visibility', $coursecontext)) {
+            $mform->hardFreeze('visible');
+            $mform->setConstant('visible', $course->visible);
+        }
 
         $mform->addElement('passwordunmask', 'enrolpassword', get_string('enrolmentkey'), 'size="25"');
         $mform->setHelpButton('enrolpassword', array('enrolmentkey', get_string('enrolmentkey')), true);
         $mform->setDefault('enrolpassword', '');
         $mform->setType('enrolpassword', PARAM_RAW);
+
+        if (empty($course) or ($course->password !== '' and $course->id != SITEID)) {
+            // do not require password in existing courses that do not have password yet - backwards compatibility ;-)
+            if (!empty($CFG->enrol_manual_requirekey)) {
+                $mform->addRule('enrolpassword', get_string('required'), 'required', null, 'client');
+            }
+        }
 
         $choices = array();
         $choices['0'] = get_string('guestsno');
@@ -384,6 +395,7 @@ class course_edit_form extends moodleform {
         if ($roles = get_records('role')) {
             foreach ($roles as $role) {
                 $mform->addElement('text', 'role_'.$role->id, $role->name);
+                $mform->setType('role_'.$role->id, PARAM_TEXT);
                 if ($coursecontext) {
                     if ($rolename = get_record('role_names', 'roleid', $role->id, 'contextid', $coursecontext->id)) {
                         $mform->setDefault('role_'.$role->id, $rolename->name);
@@ -426,6 +438,8 @@ class course_edit_form extends moodleform {
 
 /// perform some extra moodle validation
     function validation($data, $files) {
+        global $CFG;
+
         $errors = parent::validation($data, $files);
         if ($foundcourses = get_records('course', 'shortname', $data['shortname'])) {
             if (!empty($data['id'])) {
@@ -443,6 +457,17 @@ class course_edit_form extends moodleform {
         if (empty($data['enrolenddisabled'])){
             if ($data['enrolenddate'] <= $data['enrolstartdate']){
                 $errors['enroldateendgrp'] = get_string('enrolenddaterror');
+            }
+        }
+
+        if (!empty($CFG->enrol_manual_usepasswordpolicy) and isset($data['enrolpassword']) and $data['enrolpassword'] != '') {
+            $course = $this->_customdata['course'];
+            if ($course->password !== $data['enrolpassword']) {
+                // enforce password policy only if changing password - backwards compatibility
+                $errmsg = '';
+                if (!check_password_policy($data['enrolpassword'], $errmsg)) {
+                    $errors['enrolpassword'] = $errmsg;
+                }
             }
         }
 

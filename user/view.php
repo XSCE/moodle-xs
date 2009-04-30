@@ -220,7 +220,12 @@
     // Print the description
 
     if ($user->description && !isset($hiddenfields['description'])) {
-        echo format_text($user->description, FORMAT_MOODLE)."<hr />";
+        $has_courseid = ($course->id != SITEID);
+        if (!$has_courseid && !empty($CFG->profilesforenrolledusersonly) && !record_exists('role_assignments', 'userid', $id)) {
+            echo get_string('profilenotshown', 'moodle').'<hr />';
+        } else {
+            echo format_text($user->description, FORMAT_MOODLE)."<hr />";
+        }
     }
 
     // Print all the little details in a list
@@ -326,35 +331,44 @@
     profile_display_fields($user->id);
 
 
-    if ($mycourses = get_my_courses($user->id, null, null, false, 21)) {
-        $shown=0;
-        $courselisting = '';
-        foreach ($mycourses as $mycourse) {
-            if ($mycourse->category) {
-                if ($mycourse->id != $course->id){
-                    $class = '';
-                    if ($mycourse->visible == 0) {
-                        // get_my_courses will filter courses $USER cannot see
-                        // if we get one with visible 0 it just means it's hidden
-                        // ... but not from $USER
-                        $class = 'class="dimmed"';
+    if (!isset($hiddenfields['mycourses'])) {
+        if ($mycourses = get_my_courses($user->id, null, null, false, 21)) {
+            $shown=0;
+            $courselisting = '';
+            foreach ($mycourses as $mycourse) {
+                if ($mycourse->category) {
+                    if ($mycourse->id != $course->id){
+                        $class = '';
+                        if ($mycourse->visible == 0) {
+                            // get_my_courses will filter courses $USER cannot see
+                            // if we get one with visible 0 it just means it's hidden
+                            // ... but not from $USER
+                            $class = 'class="dimmed"';
+                        }
+                        $courselisting .= "<a href=\"{$CFG->wwwroot}/user/view.php?id={$user->id}&amp;course={$mycourse->id}\" $class >"
+                            . format_string($mycourse->fullname) . "</a>, ";
                     }
-                    $courselisting .= "<a href=\"{$CFG->wwwroot}/user/view.php?id={$user->id}&amp;course={$mycourse->id}\" $class >"
-                        . format_string($mycourse->fullname) . "</a>, ";
+                    else {
+                        $courselisting .= format_string($mycourse->fullname) . ", ";
+                    }
                 }
-                else {
-                    $courselisting .= format_string($mycourse->fullname) . ", ";
+                $shown++;
+                if($shown==20) {
+                    $courselisting.= "...";
+                    break;
                 }
             }
-            $shown++;
-            if($shown==20) {
-                $courselisting.= "...";
-                break;
-            }
+            print_row(get_string('courses').':', rtrim($courselisting,', '));
         }
-        print_row(get_string('courses').':', rtrim($courselisting,', '));
     }
-
+    if (!isset($hiddenfields['firstaccess'])) {
+        if ($user->firstaccess) {
+            $datestring = userdate($user->firstaccess)."&nbsp; (".format_time(time() - $user->firstaccess).")";
+        } else {
+            $datestring = get_string("never");
+        }
+        print_row(get_string("firstaccess").":", $datestring);
+    }
     if (!isset($hiddenfields['lastaccess'])) {
         if ($user->lastaccess) {
             $datestring = userdate($user->lastaccess)."&nbsp; (".format_time(time() - $user->lastaccess).")";
@@ -370,15 +384,16 @@
     }
 
 /// Printing groups
-    $isseparategroups = ($course->groupmode == SEPARATEGROUPS and $course->groupmodeforce and
-                             !has_capability('moodle/site:accessallgroups', $coursecontext));
-    if (!$isseparategroups){
-        if ($usergroups = groups_get_all_groups($course->id, $user->id)){
-            $groupstr = '';
-            foreach ($usergroups as $group){
-                $groupstr .= ' <a href="'.$CFG->wwwroot.'/user/index.php?id='.$course->id.'&amp;group='.$group->id.'">'.format_string($group->name).'</a>,';
+    if (!isset($hiddenfields['groups'])) {
+        $isseparategroups = ($course->groupmode == SEPARATEGROUPS and !has_capability('moodle/site:accessallgroups', $coursecontext));
+        if (!$isseparategroups){
+            if ($usergroups = groups_get_all_groups($course->id, $user->id)){
+                $groupstr = '';
+                foreach ($usergroups as $group){
+                    $groupstr .= ' <a href="'.$CFG->wwwroot.'/user/index.php?id='.$course->id.'&amp;group='.$group->id.'">'.format_string($group->name).'</a>,';
+                }
+                print_row(get_string("group").":", rtrim($groupstr, ', '));
             }
-            print_row(get_string("group").":", rtrim($groupstr, ', '));
         }
     }
 /// End of printing groups

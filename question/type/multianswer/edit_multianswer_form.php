@@ -1,4 +1,4 @@
-<?php
+<?php  // $Id$
 /**
  * Defines the editing form for the multianswer question type.
  *
@@ -36,7 +36,7 @@ class question_edit_multianswer_form extends question_edit_form {
         if ( isset($this->questiondisplay->options->questions) && is_array($this->questiondisplay->options->questions) ) {
             $countsubquestions =0;
             foreach($this->questiondisplay->options->questions as $subquestion){
-                if ($subquestion != ''){
+                if (!empty($subquestion)){
                    $countsubquestions++;
                 }
             } 
@@ -57,7 +57,7 @@ class question_edit_multianswer_form extends question_edit_form {
             $mform->addElement('header', 'subhdr', get_string('questionno', 'quiz',
                  '{#'.$sub.'}').'&nbsp;'.$question_type_names[$this->questiondisplay->options->questions[$sub]->qtype]);
 
-            $mform->addElement('static', 'sub_'.$sub."_".'questiontext', "subquestiontext",array('cols'=>60, 'rows'=>3));
+            $mform->addElement('static', 'sub_'.$sub."_".'questiontext', get_string('questiondefinition','qtype_multianswer'),array('cols'=>60, 'rows'=>3));
 
             if (isset ( $this->questiondisplay->options->questions[$sub]->questiontext)) {
                 $mform->setDefault('sub_'.$sub."_".'questiontext', $this->questiondisplay->options->questions[$sub]->questiontext);
@@ -66,8 +66,11 @@ class question_edit_multianswer_form extends question_edit_form {
             $mform->addElement('static', 'sub_'.$sub."_".'defaultgrade', get_string('defaultgrade', 'quiz'));
             $mform->setDefault('sub_'.$sub."_".'defaultgrade',$this->questiondisplay->options->questions[$sub]->defaultgrade);
 
+                if ($this->questiondisplay->options->questions[$sub]->qtype =='shortanswer'   ) {
+                    $mform->addElement('static', 'sub_'.$sub."_".'usecase', get_string('casesensitive', 'quiz'));
+                }
                 if ($this->questiondisplay->options->questions[$sub]->qtype =='multichoice'   ) {
-                    $mform->addElement('static', 'sub_'.$sub."_".'layout', get_string('layout', 'quiz'),array('cols'=>60, 'rows'=>1)) ;//, $gradeoptions);
+                    $mform->addElement('static', 'sub_'.$sub."_".'layout', get_string('layout', 'qtype_multianswer'),array('cols'=>60, 'rows'=>1)) ;//, $gradeoptions);
                 }
             foreach ($this->questiondisplay->options->questions[$sub]->answer as $key =>$ans) {
 
@@ -92,7 +95,7 @@ class question_edit_multianswer_form extends question_edit_form {
         if (isset($question->id) and $question->id and $question->qtype and $question->questiontext) {
 
             foreach ($question->options->questions as $key => $wrapped) {
-                if($wrapped != ''){
+                if(!empty($wrapped)){
                 // The old way of restoring the definitions is kept to gradually
                 // update all multianswer questions
                 if (empty($wrapped->questiontext)) {
@@ -150,20 +153,30 @@ class question_edit_multianswer_form extends question_edit_form {
                     $answercount = 0;
                     $maxgrade = false;
                     $maxfraction = -1;
+                    if ($subquestion->qtype =='shortanswer'   ) {
+                        switch ($subquestion->usecase) {
+                            case '1':
+                                $default_values[$prefix.'usecase']= get_string('caseyes', 'quiz');
+                                break;                                   
+                            case '0':
+                            default :
+                                $default_values[$prefix.'usecase']= get_string('caseno', 'quiz');                               
+                        }
+                    }
                     if ($subquestion->qtype == 'multichoice' ) {
                         $default_values[$prefix.'layout']  = $subquestion->layout ;
                         switch ($subquestion->layout) {
                             case '0':
-                                $default_values[$prefix.'layout']= get_string('selectelement', 'qtype_multianswer');
+                                $default_values[$prefix.'layout']= get_string('layoutselectinline', 'qtype_multianswer');
                                 break;
                             case '1':
-                                $default_values[$prefix.'layout']= get_string('verticallayout', 'qtype_multianswer');
+                                $default_values[$prefix.'layout']= get_string('layoutvertical', 'qtype_multianswer');
                                 break;                         
                             case '2':
-                                $default_values[$prefix.'layout']= get_string('horizontallayout', 'qtype_multianswer');
+                                $default_values[$prefix.'layout']= get_string('layouthorizontal', 'qtype_multianswer');
                                 break;
                             default:
-                                $default_values[$prefix.'layout']= get_string('unknownlayout', 'qtype_multianswer');
+                                $default_values[$prefix.'layout']= get_string('layoutundefined', 'qtype_multianswer');
                         } 
                     }
                     foreach ($subquestion->answer as $key=>$answer) {

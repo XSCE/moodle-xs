@@ -35,7 +35,7 @@ class course_settings_form extends moodleform {
         global $USER, $CFG;
 
         $mform =& $this->_form;
-        
+
         $systemcontext = get_context_instance(CONTEXT_SYSTEM);
         $can_view_admin_links = false;
         if (has_capability('moodle/grade:manage', $systemcontext)) {
@@ -46,7 +46,7 @@ class course_settings_form extends moodleform {
         $strchangedefaults = get_string('changedefaults', 'grades');
         $mform->addElement('header', 'general', get_string('generalsettings', 'grades'));
         if ($can_view_admin_links) {
-            $link = '<a href="' . $CFG->wwwroot . '/admin/settings.php?section=gradessettings">' . $strchangedefaults . '</a>';
+            $link = '<a href="' . $CFG->wwwroot.'/'.$CFG->admin.'/settings.php?section=gradessettings">' . $strchangedefaults . '</a>';
             $mform->addElement('static', 'generalsettingslink', $link);
         }
         $options = array(-1                                      => get_string('default', 'grades'),
@@ -65,14 +65,22 @@ class course_settings_form extends moodleform {
         // Grade item settings
         $mform->addElement('header', 'grade_item_settings', get_string('gradeitemsettings', 'grades'));
         if ($can_view_admin_links) {
-            $link = '<a href="' . $CFG->wwwroot . '/admin/settings.php?section=gradeitemsettings">' . $strchangedefaults . '</a>';
+            $link = '<a href="' . $CFG->wwwroot.'/'.$CFG->admin.'/settings.php?section=gradeitemsettings">' . $strchangedefaults . '</a>';
             $mform->addElement('static', 'gradeitemsettingslink', $link);
         }
 
         $options = array(-1                            => get_string('default', 'grades'),
                          GRADE_DISPLAY_TYPE_REAL       => get_string('real', 'grades'),
                          GRADE_DISPLAY_TYPE_PERCENTAGE => get_string('percentage', 'grades'),
-                         GRADE_DISPLAY_TYPE_LETTER     => get_string('letter', 'grades'));
+                         GRADE_DISPLAY_TYPE_LETTER     => get_string('letter', 'grades'),
+                         GRADE_DISPLAY_TYPE_REAL_PERCENTAGE => get_string('realpercentage', 'grades'),
+                         GRADE_DISPLAY_TYPE_REAL_LETTER => get_string('realletter', 'grades'),
+                         GRADE_DISPLAY_TYPE_LETTER_REAL => get_string('letterreal', 'grades'),
+                         GRADE_DISPLAY_TYPE_LETTER_PERCENTAGE => get_string('letterpercentage', 'grades'),
+                         GRADE_DISPLAY_TYPE_PERCENTAGE_LETTER => get_string('percentageletter', 'grades'),
+                         GRADE_DISPLAY_TYPE_PERCENTAGE_REAL => get_string('percentagereal', 'grades'));
+        asort($options);
+
         $default_gradedisplaytype = $CFG->grade_displaytype;
         foreach ($options as $key=>$option) {
             if ($key == $default_gradedisplaytype) {
@@ -100,9 +108,9 @@ class course_settings_form extends moodleform {
                     if (function_exists($functionname)) {
                         $mform->addElement('header', 'grade_'.$type.$plugin, get_string('modulename', 'grade'.$type.'_'.$plugin, NULL, $CFG->dirroot.'/grade/'.$type.'/'.$plugin.'/lang/'));
                         if ($can_view_admin_links) {
-                            $link = '<a href="' . $CFG->wwwroot . '/admin/settings.php?section=gradereport' . $plugin . '">' . $strchangedefaults . '</a>';
+                            $link = '<a href="' . $CFG->wwwroot.'/'.$CFG->admin.'/settings.php?section=gradereport' . $plugin . '">' . $strchangedefaults . '</a>';
                             $mform->addElement('static', 'gradeitemsettingslink', $link);
-                        }    
+                        }
                         $functionname($mform);
                     }
                 }

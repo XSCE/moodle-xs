@@ -448,7 +448,8 @@ if ($INSTALL['stage'] == ENVIRONMENT) {
     $dbconnected = $db->Connect($INSTALL['dbhost'],$INSTALL['dbuser'],$INSTALL['dbpass'],$INSTALL['dbname']);
     error_reporting(7);  // Show errors
     if ($dbconnected) {
-    /// Execute environment check, printing results
+    /// Execute environment check, not printing results
+        @remove_dir($INSTALL['dataroot'] . '/environment'); /// Always delete downloaded env. info to force use of the released one. MDL-9796
         if (!check_moodle_environment($INSTALL['release'], $environment_results, false)) {
              $nextstage = ENVIRONMENT;
         }
@@ -621,7 +622,9 @@ if (isset($_GET['help'])) {
                     echo '<p style="text-align: center">' . get_string('databasesettingswillbecreated', 'install') . '</p>';
                     echo '</div>';
 
-                    echo '<div id="postgres7">' . get_string('databasesettingssub_postgres7', 'install') . '</div>';
+                    echo '<div id="postgres7">' . get_string('databasesettingssub_postgres7', 'install');
+                    echo '<p style="text-align: left">' . get_string('postgresqlwarning', 'install') . '</p>';
+                    echo '</div>';
 
                     echo '<div id="mssql">' . get_string('databasesettingssub_mssql', 'install');
                 /// Link to mssql installation page
@@ -751,6 +754,8 @@ if ($nextstage == SAVE) {
 function form_table($nextstage = WELCOME, $formaction = "install.php") {
     global $INSTALL, $db;
 
+    $enablenext = true;
+
     /// Print the standard form if we aren't in the DOWNLOADLANG page
     /// because it has its own form.
     if ($nextstage != DOWNLOADLANG) {
@@ -785,12 +790,16 @@ function form_table($nextstage = WELCOME, $formaction = "install.php") {
 
             /// Check that PHP is of a sufficient version
             print_compatibility_row(inst_check_php_version(), get_string('phpversion', 'install'), get_string('phpversionerror', 'install'), 'phpversionhelp');
+            $enablenext = $enablenext && inst_check_php_version();
             /// Check session auto start
             print_compatibility_row(!ini_get_bool('session.auto_start'), get_string('sessionautostart', 'install'), get_string('sessionautostarterror', 'install'), 'sessionautostarthelp');
+            $enablenext = $enablenext && !ini_get_bool('session.auto_start');
             /// Check magic quotes
             print_compatibility_row(!ini_get_bool('magic_quotes_runtime'), get_string('magicquotesruntime', 'install'), get_string('magicquotesruntimeerror', 'install'), 'magicquotesruntimehelp');
+            $enablenext = $enablenext && !ini_get_bool('magic_quotes_runtime');
             /// Check unsupported PHP configuration
-            print_compatibility_row(ini_get_bool('magic_quotes_gpc') || (!ini_get_bool('register_globals')), get_string('globalsquotes', 'install'), get_string('globalsquoteserror', 'install'), 'globalsquoteshelp');
+            print_compatibility_row(!ini_get_bool('register_globals'), get_string('globalsquotes', 'install'), get_string('globalswarning', 'install'));
+            $enablenext = $enablenext && !ini_get_bool('register_globals');
             /// Check safe mode
             print_compatibility_row(!ini_get_bool('safe_mode'), get_string('safemode', 'install'), get_string('safemodeerror', 'install'), 'safemodehelp', true);
             /// Check file uploads
@@ -899,6 +908,7 @@ function form_table($nextstage = WELCOME, $formaction = "install.php") {
                     error_reporting(7);  // Show errors
                     if ($dbconnected) {
                     /// Execute environment check, printing results
+                        @remove_dir($INSTALL['dataroot'] . '/environment'); /// Always delete downloaded env. info to force use of the released one. MDL-9796
                         check_moodle_environment($INSTALL['release'], $environment_results, true);
                     } else {
                     /// We never should reach this because DB has been tested before arriving here
@@ -963,9 +973,11 @@ function form_table($nextstage = WELCOME, $formaction = "install.php") {
             <div><input type="hidden" name="stage" value="<?php echo $nextstage ?>" /></div>
 <?php
     }
+
+    $disabled = $enablenext ? '' : 'disabled="disabled"';
 ?>
 
-            <?php echo ($nextstage < SAVE) ? "<div><input type=\"submit\" name=\"next\" value=\"".get_string('next')."  &raquo;\" style=\"float: ".fix_align_rtl("right")."\"/></div>\n" : "&nbsp;\n" ?>
+            <?php echo ($nextstage < SAVE) ? "<div><input $disabled type=\"submit\" name=\"next\" value=\"".get_string('next')."  &raquo;\" style=\"float: ".fix_align_rtl("right")."\"/></div>\n" : "&nbsp;\n" ?>
             <?php echo ($nextstage > WELCOME) ? "<div><input type=\"submit\" name=\"prev\" value=\"&laquo;  ".get_string('previous')."\" style=\"float: ".fix_align_rtl("left")."\"/></div>\n" : "&nbsp;\n" ?>
 
 <?php
@@ -1009,7 +1021,9 @@ function print_compatibility_row($success, $testtext, $errormessage, $helpfield=
         echo "</p></td>\n";
         echo "<td valign=\"top\">";
         echo "<p class=\"p_install\">$errormessage ";
-        install_helpbutton("install.php?help=$helpfield");
+        if ($helpfield !== '') {
+            install_helpbutton("install.php?help=$helpfield");
+        }
         echo "</p></td>\n";
     }
     echo "</tr>\n";
@@ -1068,7 +1082,7 @@ function check_memory_limit() {
     }
 
     /// Otherwise, see if we can change it ourselves
-    @ini_set('memory_limit', '40M');
+    raise_memory_limit('40M');
     return ((int)str_replace('M', '', get_memory_limit()) >= 40);
 }
 

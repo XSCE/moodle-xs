@@ -90,6 +90,10 @@ global $HTTPSPAGEREQUIRED;
         exit(1);
     }
 
+/// sometimes default PHP settings are borked on shared hosting servers, I wonder why they have to do that??
+    @ini_set('precision', 14); // needed for upgrades and gradebook
+
+
 /// store settings from config.php in array in $CFG - we can use it later to detect problems and overrides
     $CFG->config_php_settings = (array)$CFG;
 
@@ -241,6 +245,11 @@ global $HTTPSPAGEREQUIRED;
 /// Turn on SQL logging if required
     if (!empty($CFG->logsql)) {
         $db->LogSQL();
+        // And override ADODB's default logging time
+        if (isset($CFG->logsqlmintime)) {
+            global $ADODB_PERF_MIN;
+            $ADODB_PERF_MIN = $CFG->logsqlmintime;
+        }
     }
 
 /// Prevent warnings from roles when upgrading with debug on
@@ -436,6 +445,9 @@ global $HTTPSPAGEREQUIRED;
     if (!isset($CFG->sessioncookie)) {
         $CFG->sessioncookie = '';
     }
+    if (!isset($CFG->sessioncookiedomain)) {
+        $CFG->sessioncookiedomain = '';
+    }
     if (!isset($CFG->sessioncookiepath)) {
         $CFG->sessioncookiepath = '/';
     }
@@ -493,6 +505,14 @@ global $HTTPSPAGEREQUIRED;
         }
     }
 
+/// neutralise nasty chars in PHP_SELF
+    if (isset($_SERVER['PHP_SELF'])) {
+        $phppos = strpos($_SERVER['PHP_SELF'], '.php');
+        if ($phppos !== false) {
+            $_SERVER['PHP_SELF'] = substr($_SERVER['PHP_SELF'], 0, $phppos+4);
+        }
+        unset($phppos);
+    }
 
 /// The following code can emulate "register globals" if required.
 /// This hack is no longer being applied as of Moodle 1.6 unless you really 
@@ -558,9 +578,9 @@ global $HTTPSPAGEREQUIRED;
     if (empty($nomoodlecookie)) {
         session_name('MoodleSession'.$CFG->sessioncookie);
         if (check_php_version('5.2.0')) {
-            session_set_cookie_params(0, $CFG->sessioncookiepath, '', $CFG->cookiesecure, $CFG->cookiehttponly);
+            session_set_cookie_params(0, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure, $CFG->cookiehttponly);
         } else {
-            session_set_cookie_params(0, $CFG->sessioncookiepath, '', $CFG->cookiesecure);
+            session_set_cookie_params(0, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
         }
         @session_start();
         if (! isset($_SESSION['SESSION'])) {
@@ -570,9 +590,9 @@ global $HTTPSPAGEREQUIRED;
                 $_SESSION['SESSION']->has_timed_out = true;
             }
             if (check_php_version('5.2.0')) {
-                setcookie('MoodleSessionTest'.$CFG->sessioncookie, $_SESSION['SESSION']->session_test, 0, $CFG->sessioncookiepath, '', $CFG->cookiesecure, $CFG->cookiehttponly);
+                setcookie('MoodleSessionTest'.$CFG->sessioncookie, $_SESSION['SESSION']->session_test, 0, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure, $CFG->cookiehttponly);
             } else {
-                setcookie('MoodleSessionTest'.$CFG->sessioncookie, $_SESSION['SESSION']->session_test, 0, $CFG->sessioncookiepath, '', $CFG->cookiesecure);
+                setcookie('MoodleSessionTest'.$CFG->sessioncookie, $_SESSION['SESSION']->session_test, 0, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
             }
             $_COOKIE['MoodleSessionTest'.$CFG->sessioncookie] = $_SESSION['SESSION']->session_test;
         }
@@ -689,7 +709,7 @@ global $HTTPSPAGEREQUIRED;
                     $USER = guest_user();
                 }
             }
-            if (empty($USER) && !empty($_SERVER['HTTP_REFERER'])) {
+            if (!empty($CFG->guestloginbutton) && empty($USER) && !empty($_SERVER['HTTP_REFERER'])) {
                 if (strpos($_SERVER['HTTP_REFERER'], 'google') !== false ) {
                     $USER = guest_user();
                 } else if (strpos($_SERVER['HTTP_REFERER'], 'altavista') !== false ) {
@@ -702,14 +722,16 @@ global $HTTPSPAGEREQUIRED;
         }
     }
 
-    if ($CFG->theme == 'standard' or $CFG->theme == 'standardwhite') {    // Temporary measure to help with XHTML validation
-        if (isset($_SERVER['HTTP_USER_AGENT']) and empty($_SESSION['USER']->id)) {      // Allow W3CValidator in as user called w3cvalidator (or guest)
-            if ((strpos($_SERVER['HTTP_USER_AGENT'], 'W3C_Validator') !== false) or
-                (strpos($_SERVER['HTTP_USER_AGENT'], 'Cynthia') !== false )) {
-                if ($USER = get_complete_user_data("username", "w3cvalidator")) {
-                    $USER->ignoresesskey = true;
-                } else {
-                    $USER = guest_user();
+    if (!empty($CFG->guestloginbutton)) {
+        if ($CFG->theme == 'standard' or $CFG->theme == 'standardwhite') {    // Temporary measure to help with XHTML validation
+            if (isset($_SERVER['HTTP_USER_AGENT']) and empty($_SESSION['USER']->id)) {      // Allow W3CValidator in as user called w3cvalidator (or guest)
+                if ((strpos($_SERVER['HTTP_USER_AGENT'], 'W3C_Validator') !== false) or
+                    (strpos($_SERVER['HTTP_USER_AGENT'], 'Cynthia') !== false )) {
+                    if ($USER = get_complete_user_data("username", "w3cvalidator")) {
+                        $USER->ignoresesskey = true;
+                    } else {
+                        $USER = guest_user();
+                    }
                 }
             }
         }

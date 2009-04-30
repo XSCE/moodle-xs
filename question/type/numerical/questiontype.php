@@ -1,4 +1,4 @@
-<?php
+<?php  // $Id$
 /**
  * @version $Id$
  * @author Martin Dougiamas and many others. Tim Hunt.
@@ -195,6 +195,12 @@ class question_numerical_qtype extends question_shortanswer_qtype {
         // Delete the units previously saved for this question.
         delete_records('question_numerical_units', 'question', $question->id);
 
+        // Nothing to do.
+        if (!isset($question->multiplier)) {
+            $result->units = array();
+            return $result;
+        }
+
         // Save the new units.
         $units = array();
         foreach ($question->multiplier as $i => $multiplier) {
@@ -255,17 +261,6 @@ class question_numerical_qtype extends question_shortanswer_qtype {
         // The student did type a number, so check it with tolerances.
         $this->get_tolerance_interval($answer);
         return ($answer->min <= $response && $response <= $answer->max);
-    }
-
-    // ULPGC ecastro
-    function check_response(&$question, &$state){
-        $answers = &$question->options->answers;
-        foreach($answers as $aid => $answer) {
-            if($this->test_response($question, $state, $answer)) {
-                return $aid;
-            }
-        }
-        return false;
     }
 
     function get_correct_responses(&$question, &$state) {

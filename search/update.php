@@ -1,52 +1,59 @@
 <?php
-/**
-* Global Search Engine for Moodle
-*
-* @package search
-* @category core
-* @subpackage search_engine
-* @author Michael Champanis (mchampan) [cynnical@gmail.com], Valery Fremaux [valery.fremaux@club-internet.fr] > 1.8
-* @date 2008/03/31
-* @license http://www.gnu.org/copyleft/gpl.html GNU Public License
-*
-* Index asynchronous updator
-*
-* Major chages in this review is passing the xxxx_db_names return to
-* multiple arity to handle multiple document types modules
-*/
+    /**
+    * Global Search Engine for Moodle
+    *
+    * @package search
+    * @category core
+    * @subpackage search_engine
+    * @author Michael Champanis (mchampan) [cynnical@gmail.com], Valery Fremaux [valery.fremaux@club-internet.fr] > 1.8
+    * @date 2008/03/31
+    * @license http://www.gnu.org/copyleft/gpl.html GNU Public License
+    *
+    * Index asynchronous updator
+    *
+    * Major chages in this review is passing the xxxx_db_names return to
+    * multiple arity to handle multiple document types modules
+    */
+    
+    /**
+    * includes and requires
+    */
+    require_once('../config.php');
 
-/**
-* includes and requires
-*/
-require_once('../config.php');
-require_once("$CFG->dirroot/search/lib.php");
+    if (!defined('MOODLE_INTERNAL')) {
+        die('Direct access to this script is forbidden.');    ///  It must be included from the cron script
+    }
+
+/// makes inclusions of the Zend Engine more reliable
+    ini_set('include_path', $CFG->dirroot.DIRECTORY_SEPARATOR.'search'.PATH_SEPARATOR.ini_get('include_path'));
+
+    require_once($CFG->dirroot.'/search/lib.php');
+    require_once($CFG->dirroot.'/search/indexlib.php');
 
 /// checks global search activation
 
-    require_login();
+    // require_login();
     
     if (empty($CFG->enableglobalsearch)) {
         error(get_string('globalsearchdisabled', 'search'));
     }
     
-    if (!isadmin()) {
+    /*
+    Obsolete with the MOODLE INTERNAL check
+    if (!has_capability('moodle/site:doanything', get_context_instance(CONTEXT_SYSTEM))) {
         error(get_string('beadmin', 'search'), "$CFG->wwwroot/login/index.php");
-    } 
+    }
+    */
     
-/// check for php5 (lib.php)
-
-    if (!search_check_php5()) {
-        $phpversion = phpversion();
-        mtrace("Sorry, global search requires PHP 5.0.0 or later (currently using version ".phpversion().")");
-        exit(0);
-    } 
-    
-    require_once("$CFG->dirroot/search/indexlib.php");
-    
-    $index = new Zend_Search_Lucene(SEARCH_INDEX_PATH);
+    try {
+        $index = new Zend_Search_Lucene(SEARCH_INDEX_PATH);
+    } catch(LuceneException $e) {
+        mtrace("Could not construct a valid index. Maybe the first indexation was never made, or files might be corrupted. Run complete indexation again.");
+        return;
+    }
     $dbcontrol = new IndexDBControl();
     $update_count = 0;
-    $indexdate = $CFG->search_indexer_update_date;
+    $indexdate = @$CFG->search_indexer_update_date;
     $startupdatedate = time();
 
 /// indexing changed resources
@@ -73,7 +80,7 @@ require_once("$CFG->dirroot/search/lib.php");
                     if ($valuesArray){
                         foreach($valuesArray as $values){
                         
-                            $where = (isset($values[5])) ? 'AND ('.$values[5].')' : '';
+                            $where = (!empty($values[5])) ? 'AND ('.$values[5].')' : '';
                             $itemtypes = ($values[4] != '*' && $values[4] != 'any') ? " AND itemtype = '{$values[4]}' " : '' ;
     
                             //TODO: check 'in' syntax with other RDBMS' (add and update.php as well)
@@ -85,10 +92,10 @@ require_once("$CFG->dirroot/search/lib.php");
                                 FROM 
                                     {$CFG->prefix}{$table}
                                 WHERE
-                                    doctype = '{$mod->name}'
+                                    doctype = '{$values[1]}'
                                     $itemtypes
                             ";
-                            $docIds = get_records_sql_menu($query);
+                            $docIds = get_records_sql_menu($query, array($mod->name));
                             $docIdList = ($docIds) ? implode("','", array_keys($docIds)) : '' ;
                             
                             $query = "
@@ -124,7 +131,10 @@ require_once("$CFG->dirroot/search/lib.php");
                             } 
                             
                             //add new modified document back into index
-                            $add = $get_document_function($update->id, $update->itemtype);
+                            if (!$add = $get_document_function($update->id, $update->itemtype)){
+                                // ignore on errors
+                                continue;
+                            }
                             
                             //object to insert into db
                             $dbid = $dbcontrol->addDocument($add);

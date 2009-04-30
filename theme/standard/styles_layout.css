@@ -108,6 +108,12 @@ h6.main {
 .mdl-align {
   text-align: center;
 }
+.mdl-left {
+  text-align: left;
+}
+.mdl-right {
+  text-align: right;
+}
 
 .continuebutton {
   text-align: center;
@@ -816,18 +822,22 @@ table.navbar {
 /***
  *** Filters
  ***/
-span.mediaplugin {
+.mediaplugin {
   display:block;
   clear:both;
   margin-top:5px;
   margin-bottom:5px;
 }
 
-span.mediaplugin_mp3 {
+.mediaplugin_mp3, .mediaplugin_swf, .mediaplugin_flv {
   display:inline;
   clear:none;
   margin:0px;
   margin-left:0.5em;
+}
+.texrender {
+  border:0px;
+  vertical-align:middle;
 }
 
 
@@ -907,13 +917,25 @@ body#admin-modules table.generaltable td.c0
   text-align: center;
 }
 
-#admin-report-simpletest-index .exception pre {
+#admin-maintenance .buttons {
+  text-align:center;
+}
+
+#admin-report-unittest-index .exception pre {
   padding: 8px;
 }
 
-#admin-report-simpletest-index .unittestsummary {
+#admin-report-unittest-index .unittestsummary {
   padding: 8px;
   margin-top: 1em;
+}
+
+#admin-report-security-index #timewarning {
+  text-align:center;
+}
+
+#admin-report-security-index .timewarninghidden {
+  display:none;
 }
 
 #admin-roles-allowassign .buttons,
@@ -1941,10 +1963,12 @@ body#course-category .addcategory {
   padding: 10px;
 }
 
+body#course-index .buttons .singlebutton,
 body#course-category .buttons .singlebutton {
   display: inline;
 }
 
+body#course-index .buttons,
 body#course-category .buttons {
   text-align: center;
   margin-bottom: 15px;
@@ -2010,7 +2034,21 @@ body#course-info .generalbox.info {
 #my-index .name {
   margin-left: 5px;
 }
-
+#course-pending .pendingcourserequests {
+  margin-bottom: 1em;
+}
+#course-pending .pendingcourserequests .singlebutton {
+  display: inline;
+}
+#course-pending .pendingcourserequests .cell {
+  padding: 0 5px;
+}
+#course-pending .pendingcourserequests .cell.c6 {
+  white-space: nowrap;
+}
+#course-pending .singlebutton {
+  text-align: center;
+}
 .categorylist {
   width: 90%;
   margin-left: auto;
@@ -2041,6 +2079,7 @@ body#course-info .generalbox.info {
 
 #coursesearch,
 #coursesearch2 {
+  margin-top: 1em;
   text-align:center;
 }
 
@@ -2101,7 +2140,8 @@ body#course-info .generalbox.info {
   margin-right:5px;
 }
 
-#course-report-log-index .info {
+#course-report-log-index .info,
+#course-report-log-indexlive .info {
   margin-left:auto;
   margin-right:auto;
   text-align:center;
@@ -2124,6 +2164,8 @@ body#course-info .generalbox.info {
 #course-editsection .singlebutton {
   text-align:center;
 }
+
+.jumpmenu {text-align:center}
 
 /***
  *** Group
@@ -2167,7 +2209,6 @@ body#doc-contents ul {
   display: inline;
   padding: 5px;
 }
-
 /* outcomes edit */
 
 .grade-edit-outcome .buttons {
@@ -2184,6 +2225,11 @@ div.allcoursegrades {
     width: 100%;
     text-align: right;
     padding: 4px 0px 5px 0px;
+}
+
+.importoutcomenofile .singlebutton {
+    text-align: center;
+    margin-top: 5px;
 }
 /* gradebook edit tree */
 
@@ -2555,7 +2601,8 @@ body.notes .notesgroup {
   width: 85%;
 }
 .que.description .info {
-  display: none;
+  margin: 0.5em 0 0.5em 0.2em;
+  width: 1em;
 }
 .que.description .content,
 .que.description .generalfeedback {

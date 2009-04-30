@@ -144,11 +144,11 @@
         $currenttab = 'assign';
         include_once($CFG->dirroot.'/user/tabs.php');
     } else if ($context->contextlevel == CONTEXT_SYSTEM) {
-        admin_externalpage_setup('assignroles');
-        admin_externalpage_print_header();
+        admin_externalpage_setup('assignroles', '', array('contextid' => $contextid, 'roleid' => $roleid));
+        admin_externalpage_print_header('');
     } else if ($context->contextlevel==CONTEXT_COURSE and $context->instanceid == SITEID) {
-        admin_externalpage_setup('frontpageroles');
-        admin_externalpage_print_header();
+        admin_externalpage_setup('frontpageroles', '', array('contextid' => $contextid, 'roleid' => $roleid));
+        admin_externalpage_print_header('');
         $currenttab = 'assign';
         include_once('tabs.php');
     } else {
@@ -290,7 +290,7 @@
             $selectsql = "";
         }
 
-        if ($context->contextlevel > CONTEXT_COURSE) { // mod or block (or group?)
+        if ($context->contextlevel > CONTEXT_COURSE && !is_inside_frontpage($context)) { // mod or block (or group?)
 
             /************************************************************************
              *                                                                      *
@@ -395,6 +395,12 @@
             notify($msg);
             print_simple_box_end();
         }
+		
+		//Back to Assign Roles button
+		echo "<br/>";
+		echo "<div class='continuebutton'>";
+		print_single_button('assign.php', array('contextid' => $contextid), get_string('assignrolesin', 'role', print_context_name($context)));
+		echo "</div>";
 
     } else {   // Print overview table
 
@@ -429,7 +435,8 @@
                 $rolehodlernames[$roleid] = '';
             }
         }
-
+		
+		
         // Print overview table
         $table->tablealign = 'center';
         $table->cellpadding = 5;
@@ -452,10 +459,14 @@
             }
             $table->data[] = $row;
         }
-
         print_table($table);
+		
+	   //Continue to Course Button
+	   echo "<br/>";
+	   echo "<div class='continuebutton'>";
+	   print_single_button($CFG->wwwroot.'/course/view.php', array('id' => $courseid), get_string('continuetocourse'));
+	   echo "</div>";
     }
-
+	
     print_footer($course);
-
 ?>

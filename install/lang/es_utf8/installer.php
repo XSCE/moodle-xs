@@ -39,6 +39,8 @@ $string['configfilewritten'] = 'config.php se ha creado con éxito';
 $string['configurationcompletehead'] = 'Configuración completa';
 $string['configurationcompletesub'] = 'Moodle ha creado su fichero de configuración';
 $string['continue'] = 'Continuar';
+$string['ctyperecommended'] = 'Es muy recomendable instalar la extensión opcional ctype de PHP con el fin de mejorar el rendimiento del sitio, en especial si el sitio incluye idiomas no latinos.';
+$string['ctyperequired'] = 'Con el fin de mejorar el rendimiento del sitio y ofrecer compatibilidad multilingüe, Moodle requiere la extensión ctype de PHP.';
 $string['curlrecommended'] = 'Se recomienda encarecidamente instalar la librería opcional Curl a fin de posibilitar la funcionalidad de la Red Moodle.';
 $string['customcheck'] = 'Otras comprobaciones';
 $string['database'] = 'Base de datos';
@@ -100,6 +102,7 @@ $string['databasesettingssub_postgres7'] = '<b>Tipo:</b> PostgreSQL<br />
 $string['databasesettingswillbecreated'] = '<b>Nota:</> el instalador tratará de crear la base de datos en el caso de que no exista.';
 $string['dataroot'] = 'Directorio de Datos';
 $string['datarooterror'] = 'El \'Directorio de Datos\' no pudo ser encontrado o creado. Corrija la ruta o cree el directorio manualmente.';
+$string['datarootpublicerror'] = 'El \'Directorio de datos\' que ha especificado es directamente accesible vía web: debe utilizar un directorio diferente.';
 $string['dbconnectionerror'] = 'Error de conexión con la base de datos. Por favor, compruebe los ajustes de la base de datos.';
 $string['dbcreationerror'] = 'Error al crear la base de datos. No se ha podido crear la base de datos con el nombre y ajustes suministrados';
 $string['dbhost'] = 'Servidor';
@@ -209,8 +212,8 @@ a, digamos, 40M. Si no lo tiene, pida a su administrador que lo haga por usted.<
 $string['missingrequiredfield'] = 'Falta algún campo necesario';
 $string['moodledocslink'] = 'Moodle Docs para esta página';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server con UTF-8 (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHP no se ha configurado adecuadamente con la extensión MSSQL de modo que pueda comunicarse con el SQL*Server. Por favor, compruebe el archivo php.ini o vuelva a compilar PHP.';
+$string['mssql_n'] = 'SQL*Server con UTF-8 (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'En cualquier caso, si su sitio únicamente está utilizando idiomas ISO-8859-1 (latin), puede continuar con su versión de MySQL actual (4.1.12 o superior).';
 $string['mysql416required'] = 'MySQL 4.1.16 es la versión mínima requerida para trabajar con Moodle 1.6 y garantizar que toda la información podrá ser convertida a UTF-8 en el futuro.';
@@ -221,8 +224,8 @@ $string['name'] = 'Nombre';
 $string['next'] = 'Siguiente';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHP no ha sido adecuadamente configurado con la extensión OCI8 de modo que pueda comunicarse con Oracle. Por favor, compruebe el archivo php.ini o vuelva a compilar PHP.';
-$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHP no ha sido adecuadamente configurado con la extensión ODBC de modo que pueda comunicarse con SQL*Server. Por favor, compruebe el archivo php.ini o vuelva a compilar PHP.';
+$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Instalar la librería opcional OpenSSL es altamente recomendado -- activa la funcionalidad de red de Moodle (\'Moodle Networking\').';
 $string['parentlanguage'] = 'es';
@@ -236,6 +239,9 @@ $string['phpversionhelp'] = '<p>Moodle requiere una versión de PHP 4.1.0 o supe
 <p>Su versión es $a</p>
 <p>Debe actualizar PHP o acudir a otro servidor con una versión más reciente de PHP</p>';
 $string['postgres7'] = 'PostgreSQL (postgres7)';
+$string['postgresqlwarning'] = '<strong>Nota:</strong> Si experimenta problemas de conexión, puede intentar ajustar el campo Host Server como
+host=\'postgresql_host\' port=\'5432\' dbname=\'postgresql_database_name\' user=\'postgresql_user\' password=\'postgresql_user_password\'
+y dejar vacía los campos Base de datos, Usuario y Contraseña. Más información en <a href=\"http://docs.moodle.org/en/Installing_Postgres_for_PHP\">Moodle Docs</a>';
 $string['previous'] = 'Anterior';
 $string['qtyperqpwillberemoved'] = 'Durante la actualización, el tipo de pregunta RQP será eliminada. En el caso de que no estuviera utilizando este tipo de pregunta, no debería tener ningún problema.';
 $string['qtyperqpwillberemovedanyway'] = 'Durante la actualización, el tipo de pregunta RQP será eliminada. Usted tiene algunas preguntas RQP en su base de datos, y tales preguntas no pararán de funcionar a menos que reinstale el código desde http://moodle.org/mod/data/view.php?d=13&amp;rid=797  antes de continuar la actualización.';

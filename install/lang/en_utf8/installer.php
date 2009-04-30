@@ -233,8 +233,8 @@ $string['memorylimithelp'] = '<p>The PHP memory limit for your server is current
 $string['missingrequiredfield'] = 'A required field is missing';
 $string['moodledocslink'] = 'Moodle Docs for this page';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server with UTF-8 support (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHP has not been properly configured with the MSSQL extension so that it can communicate with SQL*Server.  Please check your php.ini file or recompile PHP.';
+$string['mssql_n'] = 'SQL*Server with UTF-8 support (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'However, if your site is using iso-8859-1 (latin) languages ONLY, you may continue using your currently installed MySQL 4.1.12 (or higher).';
 $string['mysql416required'] = 'MySQL 4.1.16 is the minimum version required for Moodle 1.6 in order to guarantee that all data can be converted to UTF-8 in the future.';
@@ -245,8 +245,8 @@ $string['name'] = 'Name';
 $string['next'] = 'Next';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHP has not been properly configured with the OCI8 extension so that it can communicate with Oracle.  Please check your php.ini file or recompile PHP.';
-$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHP has not been properly configured with the ODBC extension so that it can communicate with SQL*Server.  Please check your php.ini file or recompile PHP.';
+$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Installing the optional OpenSSL library is highly recommended -- it enables Moodle Networking functionality.';
 $string['pass'] = 'Pass';
@@ -257,9 +257,12 @@ $string['phpversion'] = 'PHP version';
 $string['phpversionerror'] = 'PHP version must be at least 4.3.0 or 5.1.0 (5.0.x has a number of known problems).';
 $string['phpversionhelp'] = '<p>Moodle requires a PHP version of at least 4.3.0 or 5.1.0 (5.0.x has a number of known problems).</p>
 <p>You are currently running version $a</p>
-<p>You must upgrade PHP or move to a host with a newer version of PHP!<br/>
+<p>You must upgrade PHP or move to a host with a newer version of PHP!<br />
 (In case of 5.0.x you could also downgrade to 4.4.x version)</p>';
 $string['postgres7'] = 'PostgreSQL (postgres7)';
+$string['postgresqlwarning'] = '<strong>Note:</strong> If you experience some connection problems, you can try to set Host Server field as
+ host=\'postgresql_host\' port=\'5432\' dbname=\'postgresql_database_name\' user=\'postgresql_user\' password=\'postgresql_user_password\'
+and to leave empty the Database, User and Password fields. More information on <a href=\"http://docs.moodle.org/en/Installing_Postgres_for_PHP\">Moodle Docs</a>';
 $string['previous'] = 'Previous';
 $string['qtyperqpwillberemoved'] = 'During the upgrade, the RQP question type will be removed. You were not using this question type, so you should not experience any problems.';
 $string['qtyperqpwillberemovedanyway'] = 'During the upgrade, the RQP question type will be removed. You have some RQP questions in your database, and these will stop working unless you reinstall the code from http://moodle.org/mod/data/view.php?d=13&amp;rid=797 before continuing with the upgrade.';

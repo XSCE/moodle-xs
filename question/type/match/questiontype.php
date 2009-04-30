@@ -33,7 +33,8 @@ class question_match_qtype extends default_questiontype {
 
         // Insert all the new question+answer pairs
         foreach ($question->subquestions as $key => $questiontext) {
-            $answertext = $question->subanswers[$key];
+            $questiontext = trim($questiontext);
+            $answertext = trim($question->subanswers[$key]);
             if ($questiontext != '' || $answertext != '') {
                 if ($subquestion = array_shift($oldsubquestions)) {  // Existing answer, so reuse it
                     $subquestion->questiontext = $questiontext;
@@ -128,8 +129,7 @@ class question_match_qtype extends default_questiontype {
             $answer->id       = $subquestion->code;
             $answer->answer   = $subquestion->answertext;
             $answer->fraction = 1.0;
-            $state->options->subquestions[$key]->options
-                    ->answers[$subquestion->code] = clone($answer);
+            $state->options->subquestions[$key]->options->answers[$subquestion->code] = clone($answer);
 
             $state->responses[$key] = '';
         }
@@ -147,8 +147,7 @@ class question_match_qtype extends default_questiontype {
         // list of question answer pairs (e.g. 1-1,2-3,3-2), where the ids of
         // both refer to the id in the table question_match_sub.
         $responses = explode(',', $state->responses['']);
-        $responses = array_map(create_function('$val',
-         'return explode("-", $val);'), $responses);
+        $responses = array_map(create_function('$val', 'return explode("-", $val);'), $responses);
 
         if (!$questions = get_records('question_match_sub', 'question', $question->id, 'id ASC')) {
            notify('Error: Missing subquestions!');
@@ -170,10 +169,9 @@ class question_match_qtype extends default_questiontype {
             // answers per question, each with different marks and feedback.
             $answer = new stdClass();
             $answer->id       = $subquestion->code;
-            $answer->answer   = format_string($subquestion->answertext);
+            $answer->answer   = $subquestion->answertext;
             $answer->fraction = 1.0;
-            $state->options->subquestions[$key]->options
-             ->answers[$subquestion->code] = clone($answer);
+            $state->options->subquestions[$key]->options->answers[$subquestion->code] = clone($answer);
         }
 
         return true;
@@ -193,11 +191,11 @@ class question_match_qtype extends default_questiontype {
         $responses = array();
         foreach ($subquestions as $key => $subquestion) {
             $response = 0;
-            if ($subquestion->questiontext) {
+            if ($subquestion->questiontext !== '' && !is_null($subquestion->questiontext)) {
                 if ($state->responses[$key]) {
                     $response = $state->responses[$key];
                     if (!array_key_exists($response, $subquestion->options->answers)) {
-                        // If studen's answer did not match by id, but there may be
+                        // If student's answer did not match by id, but there may be
                         // two answers with the same text, but different ids,
                         // so we need to try matching the answer text.
                         $expected_answer = reset($subquestion->options->answers);
@@ -223,7 +221,7 @@ class question_match_qtype extends default_questiontype {
         $responses = array();
         foreach ($state->options->subquestions as $sub) {
             foreach ($sub->options->answers as $answer) {
-                if (1 == $answer->fraction && $sub->questiontext != '') {
+                if (1 == $answer->fraction && $sub->questiontext != '' && !is_null($sub->questiontext)) {
                     $responses[$sub->id] = $answer->id;
                 }
             }
@@ -236,9 +234,9 @@ class question_match_qtype extends default_questiontype {
         $subquestions   = $state->options->subquestions;
         $correctanswers = $this->get_correct_responses($question, $state);
         $nameprefix     = $question->name_prefix;
-        $answers        = array();
-        $allanswers     = array();
-        $answerids      = array();
+        $answers        = array(); // Answer choices formatted ready for output.
+        $allanswers     = array(); // This and the next used to detect identical answers
+        $answerids      = array(); // and adjust ids.
         $responses      = &$state->responses;
 
         // Prepare a list of answers, removing duplicates.
@@ -246,7 +244,7 @@ class question_match_qtype extends default_questiontype {
             foreach ($subquestion->options->answers as $ans) {
                 $allanswers[$ans->id] = $ans->answer;
                 if (!in_array($ans->answer, $answers)) {
-                    $answers[$ans->id] = $ans->answer;
+                    $answers[$ans->id] = strip_tags(format_string($ans->answer, false));
                     $answerids[$ans->answer] = $ans->id;
                 }
             }
@@ -272,7 +270,7 @@ class question_match_qtype extends default_questiontype {
 
         // Print the input controls
         foreach ($subquestions as $key => $subquestion) {
-            if ($subquestion->questiontext != '') {
+            if ($subquestion->questiontext !== '' && !is_null($subquestion->questiontext)) {
                 // Subquestion text:
                 $a = new stdClass;
                 $a->text = $this->format_text($subquestion->questiontext,
@@ -334,7 +332,7 @@ class question_match_qtype extends default_questiontype {
         $sumgrade = 0;
         $totalgrade = 0;
         foreach ($subquestions as $key => $sub) {
-            if ($sub->questiontext) {
+            if ($sub->questiontext !== '' && !is_null($sub->questiontext)) {
                 $totalgrade += 1;
                 $response = $responses[$key];
                 if ($response && !array_key_exists($response, $sub->options->answers)) {
@@ -386,7 +384,7 @@ class question_match_qtype extends default_questiontype {
         $answers = array();
         if (is_array($question->options->subquestions)) {
             foreach ($question->options->subquestions as $aid => $answer) {
-                if ($answer->questiontext) {
+                if ($answer->questiontext !== '' && !is_null($answer->questiontext)) {
                     $r = new stdClass;
                     $r->answer = $answer->questiontext . ": " . $answer->answertext;
                     $r->credit = 1;
@@ -428,12 +426,20 @@ class question_match_qtype extends default_questiontype {
      * This is used in question/backuplib.php
      */
     function backup($bf,$preferences,$question,$level=6) {
-
         $status = true;
+
+        // Output the shuffleanswers setting.
+        $matchoptions = get_record('question_match', 'question', $question);
+        if ($matchoptions) {
+            $status = fwrite ($bf,start_tag("MATCHOPTIONS",6,true));
+            fwrite ($bf,full_tag("SHUFFLEANSWERS",7,false,$matchoptions->shuffleanswers));
+            $status = fwrite ($bf,end_tag("MATCHOPTIONS",6,true));
+        }
 
         $matchs = get_records('question_match_sub', 'question', $question, 'id ASC');
         //If there are matchs
         if ($matchs) {
+            //Print match contents
             $status = fwrite ($bf,start_tag("MATCHS",6,true));
             //Iterate over each match
             foreach ($matchs as $match) {
@@ -458,7 +464,6 @@ class question_match_qtype extends default_questiontype {
      * This is used in question/restorelib.php
      */
     function restore($old_question_id,$new_question_id,$info,$restore) {
-
         $status = true;
 
         //Get the matchs array
@@ -519,6 +524,13 @@ class question_match_qtype extends default_questiontype {
         $match = new stdClass;
         $match->question = $new_question_id;
         $match->subquestions = $subquestions_field;
+
+        // Get the shuffleanswers option, if it is there.
+        if (!empty($info['#']['MATCHOPTIONS']['0']['#']['SHUFFLEANSWERS'])) {
+            $match->shuffleanswers = backup_todb($info['#']['MATCHOPTIONS']['0']['#']['SHUFFLEANSWERS']['0']['#']);
+        } else {
+            $match->shuffleanswers = 1;
+        }
 
         //The structure is equal to the db, so insert the question_match_sub
         $newid = insert_record ("question_match",$match);
@@ -600,26 +612,13 @@ class question_match_qtype extends default_questiontype {
             //Get the match_sub from backup_ids (for the question)
             if (!$match_que = backup_getid($restore->backup_unique_code,"question_match_sub",$match_question_id)) {
                 echo 'Could not recode question in question_match_sub '.$match_question_id.'<br />';
-            }
-            //Get the match_sub from backup_ids (for the answer)
-            if ($match_answer_id) { // only recode answer if not 0, not answered yet
-              if (!$match_ans = backup_getid($restore->backup_unique_code,"question_match_sub",$match_answer_id)) {
-                  echo 'Could not recode answer in question_match_sub '.$match_answer_id.'<br />';
-              }
-            }
-
-            if ($match_que) {
-                //If the question hasn't response, it must be 0
-                if (!$match_ans and $match_answer_id == 0) {
-                    $match_ans->new_id = 0;
-                }
-
+            } else {
                 if ($in_first) {
-                    $answer_field .= $match_que->new_id."-".$match_ans->new_id;
                     $in_first = false;
                 } else {
-                    $answer_field .= ",".$match_que->new_id."-".$match_ans->new_id;
+                    $answer_field .= ',';
                 }
+                $answer_field .= $match_que->new_id.'-'.$match_answer_id;
             }
             //check for next
             $tok = strtok(",");

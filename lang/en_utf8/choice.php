@@ -33,7 +33,7 @@ $string['notanswered'] = 'Not answered yet';
 $string['notopenyet'] = 'Sorry, this activity is not available until $a';
 $string['privacy'] = 'Privacy of results';
 $string['publish'] = 'Publish results';
-$string['publishafteranswer'] = 'Show results to a student after they answer';
+$string['publishafteranswer'] = 'Show results to students after they answer';
 $string['publishafterclose'] = 'Show results to students only after the choice is closed';
 $string['publishalways'] = 'Always show results to students';
 $string['publishanonymous'] = 'Publish anonymous results, do not show student names';
@@ -51,5 +51,6 @@ $string['taken'] = 'Taken';
 $string['timerestrict'] = 'Restrict answering to this time period';
 $string['viewallresponses'] = 'View $a responses';
 $string['yourselection'] = 'Your selection';
+$string['choicesaved'] = 'Your choice has been saved';
 
 ?>

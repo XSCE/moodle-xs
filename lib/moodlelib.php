@@ -31,7 +31,6 @@
  *  - weblib.php      - functions that produce web output
  *  - datalib.php     - functions that access the database
  * @author Martin Dougiamas
- * @version $Id$
  * @license http://www.gnu.org/copyleft/gpl.html GNU Public License
  * @package moodlecore
  */
@@ -787,6 +786,25 @@ function get_cache_flags($type, $changedsince=NULL) {
         }
     }
     return $cf;
+}
+
+/**
+ * Use this funciton to get a list of users from a config setting of type admin_setting_users_with_capability.
+ * @param string $value the value of the config setting.
+ * @param string $capability the capability - must match the one passed to the admin_setting_users_with_capability constructor.
+ * @return array of user objects.
+ */
+function get_users_from_config($value, $capability) {
+    global $CFG;
+    if ($value == '$@ALL@$') {
+        $users = get_users_by_capability(get_context_instance(CONTEXT_SYSTEM), $capability);
+    } else if ($value) {
+        $usernames = explode(',', $value);
+        $users = get_records_select('user', "username IN ('" . implode("','", $usernames) . "') AND mnethostid = " . $CFG->mnet_localhost_id);
+    } else {
+        $users = array();
+    }
+    return $users;
 }
 
 /**
@@ -1968,10 +1986,15 @@ function require_login($courseorid=0, $autologinguest=true, $cm=null, $setwantsu
             print_error('nocontext');
         }
     }
+    if (!empty($cm) && !isset($cm->context)) {
+        if ( ! $cm->context = get_context_instance(CONTEXT_MODULE, $cm->id) ) {
+            print_error('nocontext');
+        }
+    }
     if ($COURSE->id == SITEID) {
         /// Eliminate hidden site activities straight away
         if (!empty($cm) && !$cm->visible
-            && !has_capability('moodle/course:viewhiddenactivities', $COURSE->context)) {
+            && !has_capability('moodle/course:viewhiddenactivities', $cm->context)) {
             redirect($CFG->wwwroot, get_string('activityiscurrentlyhidden'));
         }
         user_accesstime_log($COURSE->id); /// Access granted, update lastaccess times
@@ -2062,7 +2085,7 @@ function require_login($courseorid=0, $autologinguest=true, $cm=null, $setwantsu
 
         /// Make sure they can read this activity too, if specified
 
-            if (!empty($cm) and !$cm->visible and !has_capability('moodle/course:viewhiddenactivities', $COURSE->context)) {
+            if (!empty($cm) && !$cm->visible && !has_capability('moodle/course:viewhiddenactivities', $cm->context)) {
                 redirect($CFG->wwwroot.'/course/view.php?id='.$cm->course, get_string('activityiscurrentlyhidden'));
             }
             user_accesstime_log($COURSE->id); /// Access granted, update lastaccess times
@@ -2113,9 +2136,9 @@ function require_logout() {
         error_log('Headers were already sent in file: '.$file.' on line '.$line);
     } else {
         if (check_php_version('5.2.0')) {
-            setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure, $CFG->cookiehttponly);
+            setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure, $CFG->cookiehttponly);
         } else {
-            setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure);
+            setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
         }
     }
 
@@ -2280,6 +2303,11 @@ function over_bounce_threshold($user) {
     if (empty($CFG->handlebounces)) {
         return false;
     }
+
+    if (empty($user->id)) { /// No real (DB) user, nothing to do here.
+        return false;
+    }
+
     // set sensible defaults
     if (empty($CFG->minbounces)) {
         $CFG->minbounces = 10;
@@ -2303,6 +2331,11 @@ function over_bounce_threshold($user) {
  * @param $reset - will reset the count to 0
  */
 function set_send_count($user,$reset=false) {
+
+    if (empty($user->id)) { /// No real (DB) user, nothing to do here.
+        return;
+    }
+
     if ($pref = get_record('user_preferences','userid',$user->id,'name','email_send_count')) {
         $pref->value = (!empty($reset)) ? 0 : $pref->value+1;
         update_record('user_preferences',$pref);
@@ -2670,9 +2703,8 @@ function set_moodle_cookie($thing) {
     $days = 60;
     $seconds = DAYSECS*$days;
 
-    // no need to set secure or http cookie only here - it is not secret
-    setCookie($cookiename, '', time() - HOURSECS, $CFG->sessioncookiepath);
-    setCookie($cookiename, rc4encrypt($thing), time()+$seconds, $CFG->sessioncookiepath);
+    setCookie($cookiename, '', time() - HOURSECS, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
+    setCookie($cookiename, rc4encrypt($thing), time()+$seconds, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
 }
 
 /**
@@ -2871,6 +2903,10 @@ function create_user_record($username, $password, $auth='manual') {
         }
     }
 
+    if (!isset($newuser->city)) {
+        $newuser->city = '';
+    }
+
     $newuser->auth = $auth;
     $newuser->username = $username;
 
@@ -2983,6 +3019,7 @@ function delete_user($user) {
     global $CFG;
     require_once($CFG->libdir.'/grouplib.php');
     require_once($CFG->libdir.'/gradelib.php');
+    require_once($CFG->dirroot.'/message/lib.php');
 
     begin_sql();
 
@@ -2992,6 +3029,9 @@ function delete_user($user) {
             $grade->delete('userdelete');
         }
     }
+
+    //move unread messages from this user to read
+    message_move_userfrom_unread2read($user->id);
 
     // remove from all groups
     delete_records('groups_members', 'userid', $user->id);
@@ -3109,6 +3149,10 @@ function authenticate_user_login($username, $password) {
             if (empty($user->auth)) {             // For some reason auth isn't set yet
                 set_field('user', 'auth', $auth, 'username', $username);
                 $user->auth = $auth;
+            }
+            if (empty($user->firstaccess)) { //prevent firstaccess from remaining 0 for manual account that never required confirmation
+                set_field('user','firstaccess', $user->timemodified, 'id', $user->id);
+                $user->firstaccess = $user->timemodified;
             }
 
             update_internal_user_password($user, $password); // just in case salt or encoding were changed (magic quotes too one day)
@@ -3384,8 +3428,10 @@ function get_complete_user_data($field, $value, $mnethostid=null) {
         $user->lastname   = ' ';
     }
 
-    $user->sesskey  = random_string(10);
-    $user->sessionIP = md5(getremoteaddr());   // Store the current IP in the session
+    if (isset($_SERVER['REMOTE_ADDR'])) {
+        $user->sesskey  = random_string(10);
+        $user->sessionIP = md5(getremoteaddr());   // Store the current IP in the session
+    }
 
     return $user;
 }
@@ -3543,7 +3589,23 @@ function remove_course_contents($courseid, $showfeedback=true) {
 
     $strdeleted = get_string('deleted');
 
-/// First delete every instance of every module
+/// Clean up course formats (iterate through all formats in the even the course format was ever changed)
+    $formats = get_list_of_plugins('course/format');
+    foreach ($formats as $format) {
+        $formatdelete = $format.'_course_format_delete_course';
+        $formatlib    = "$CFG->dirroot/course/format/$format/lib.php";
+        if (file_exists($formatlib)) {
+            include_once($formatlib);
+            if (function_exists($formatdelete)) {
+                if ($showfeedback) {
+                    notify($strdeleted.' '.$format);
+                }
+                $formatdelete($course->id);
+            }
+        }
+    }
+
+/// Delete every instance of every module
 
     if ($allmods = get_records('modules') ) {
         foreach ($allmods as $mod) {
@@ -3593,7 +3655,7 @@ function remove_course_contents($courseid, $showfeedback=true) {
     }
 
 /// Give local code a chance to delete its references to this course.
-    require_once('locallib.php');
+    require_once($CFG->libdir.'/locallib.php');
     notify_local_delete_course($courseid, $showfeedback);
 
 /// Delete course blocks
@@ -3899,14 +3961,9 @@ function reset_course_userdata($data) {
 function generate_email_processing_address($modid,$modargs) {
     global $CFG;
 
-    if (empty($CFG->siteidentifier)) {    // Unique site identification code
-        set_config('siteidentifier', random_string(32));
-    }
-
     $header = $CFG->mailprefix . substr(base64_encode(pack('C',$modid)),0,2).$modargs;
-    return $header . substr(md5($header.$CFG->siteidentifier),0,16).'@'.$CFG->maildomain;
+    return $header . substr(md5($header.get_site_identifier()),0,16).'@'.$CFG->maildomain;
 }
-
 
 function moodle_process_email($modargs,$body) {
     // the first char should be an unencoded letter. We'll take this as an action
@@ -4079,7 +4136,7 @@ function email_to_user($user, $from, $subject, $messagetext, $messagehtml='', $a
     global $CFG, $FULLME, $MNETIDPJUMPURL;
     static $mnetjumps = array();
 
-    if (empty($user)) {
+    if (empty($user) || empty($user->email)) {
         return false;
     }
 
@@ -4110,7 +4167,7 @@ function email_to_user($user, $from, $subject, $messagetext, $messagehtml='', $a
     // If the user is a remote mnet user, parse the email text for URL to the
     // wwwroot and modify the url to direct the user's browser to login at their
     // home site (identity provider - idp) before hitting the link itself
-    if ($user->mnethostid > 1) {
+    if (is_mnet_remote_user($user)) {
         require_once($CFG->dirroot.'/mnet/lib.php');
         // Form the request url to hit the idp's jump.php
         if (isset($mnetjumps[$user->mnethostid])) {
@@ -4229,11 +4286,11 @@ function email_to_user($user, $from, $subject, $messagetext, $messagehtml='', $a
         /// And convert some strings
             $mail->FromName = $textlib->convert($mail->FromName, 'utf-8', $mail->CharSet); //From Name
             foreach ($mail->ReplyTo as $key => $rt) {                                      //ReplyTo Names
-                $mail->ReplyTo[$key][1] = $textlib->convert($rt, 'utf-8', $mail->CharSet);
+                $mail->ReplyTo[$key][1] = $textlib->convert($rt[1], 'utf-8', $mail->CharSet);
             }
             $mail->Subject = $textlib->convert($mail->Subject, 'utf-8', $mail->CharSet);   //Subject
             foreach ($mail->to as $key => $to) {
-                $mail->to[$key][1] = $textlib->convert($to, 'utf-8', $mail->CharSet);      //To Names
+                $mail->to[$key][1] = $textlib->convert($to[1], 'utf-8', $mail->CharSet);      //To Names
             }
             $mail->Body = $textlib->convert($mail->Body, 'utf-8', $mail->CharSet);         //Body
             $mail->AltBody = $textlib->convert($mail->AltBody, 'utf-8', $mail->CharSet);   //Subject
@@ -4368,12 +4425,13 @@ function reset_password_and_mail($user) {
     }
 
     $a = new object();
-    $a->firstname = $user->firstname;
-    $a->sitename = format_string($site->fullname);
-    $a->username = $user->username;
+    $a->firstname   = $user->firstname;
+    $a->lastname    = $user->lastname;
+    $a->sitename    = format_string($site->fullname);
+    $a->username    = $user->username;
     $a->newpassword = $newpassword;
-    $a->link = $CFG->httpswwwroot .'/login/change_password.php';
-    $a->signoff = generate_email_signoff();
+    $a->link        = $CFG->httpswwwroot .'/login/change_password.php';
+    $a->signoff     = generate_email_signoff();
 
     $message = get_string('newpasswordtext', '', $a);
 
@@ -4432,9 +4490,10 @@ function send_password_change_confirmation_email($user) {
 
     $data = new object();
     $data->firstname = $user->firstname;
-    $data->sitename = format_string($site->fullname);
-    $data->link = $CFG->httpswwwroot .'/login/forgot_password.php?p='. $user->secret .'&s='. urlencode($user->username);
-    $data->admin = generate_email_signoff();
+    $data->lastname  = $user->lastname;
+    $data->sitename  = format_string($site->fullname);
+    $data->link      = $CFG->httpswwwroot .'/login/forgot_password.php?p='. $user->secret .'&s='. urlencode($user->username);
+    $data->admin     = generate_email_signoff();
 
     $message = get_string('emailpasswordconfirmation', '', $data);
     $subject = get_string('emailpasswordconfirmationsubject', '', format_string($site->fullname));
@@ -4461,6 +4520,7 @@ function send_password_change_info($user) {
 
     $data = new object();
     $data->firstname = $user->firstname;
+    $data->lastname  = $user->lastname;
     $data->sitename = format_string($site->fullname);
     $data->admin = generate_email_signoff();
 
@@ -4565,7 +4625,7 @@ function email_welcome_message_to_user($course, $user=NULL) {
     } else {
         $a = new Object();
         $a->coursename = $course->fullname;
-        $a->profileurl = "$CFG->wwwroot/user/view.php?id=$USER->id&course=$course->id";
+        $a->profileurl = "$CFG->wwwroot/user/view.php?id=$user->id&course=$course->id";
         $message = get_string("welcometocoursetext", "", $a);
     }
 
@@ -5241,7 +5301,7 @@ function get_string($identifier, $module='', $a=NULL, $extralocations=NULL) {
                             'parentlanguage', 'strftimedate', 'strftimedateshort', 'strftimedatetime',
                             'strftimedaydate', 'strftimedaydatetime', 'strftimedayshort', 'strftimedaytime',
                             'strftimemonthyear', 'strftimerecent', 'strftimerecentfull', 'strftimetime',
-                            'thischarset', 'thisdirection', 'thislanguage', 'strftimedatetimeshort');
+                            'thischarset', 'thisdirection', 'thislanguage', 'strftimedatetimeshort', 'thousandssep');
 
     $filetocheck = 'langconfig.php';
     $defaultlang = 'en_utf8';
@@ -5312,7 +5372,6 @@ function get_string($identifier, $module='', $a=NULL, $extralocations=NULL) {
     } else {
         $locations[] = $CFG->dataroot.'/lang/';
         $locations[] = $CFG->dirroot.'/lang/';
-        $locations[] = $CFG->dirroot.'/local/lang/';
     }
 
 /// Add extra places to look for strings for particular plugin types.
@@ -5329,7 +5388,9 @@ function get_string($identifier, $module='', $a=NULL, $extralocations=NULL) {
             $type = substr($module, 0, $dividerpos + 1);
             $plugin = substr($module, $dividerpos + 1);
         }
-        if (!empty($rules[$type])) {
+        if ($module == 'local') {
+            $locations[] = $CFG->dirroot . '/local/lang/';
+        } if (!empty($rules[$type])) {
             foreach ($rules[$type] as $location) {
                 $locations[] = $CFG->dirroot . "/$location/$plugin/lang/";
             }
@@ -5372,14 +5433,18 @@ function get_string($identifier, $module='', $a=NULL, $extralocations=NULL) {
         $langfile = $location.$lang.'/'.$filetocheck;
         if (file_exists($langfile)) {
             if ($result = get_string_from_file('parentlanguage', $langfile, "\$parentlang")) {
-                eval($result);
+                if (eval($result) === FALSE) {
+                    trigger_error('Lang error: '.$identifier.':'.$langfile, E_USER_NOTICE);
+                }
                 if (!empty($parentlang)) {   // found it!
 
                     //first, see if there's a local file for parent
                     $locallangfile = $location.$parentlang.'_local'.'/'.$module.'.php';
                     if (file_exists($locallangfile)) {
                         if ($result = get_string_from_file($identifier, $locallangfile, "\$resultstring")) {
-                            eval($result);
+                            if (eval($result) === FALSE) {
+                                trigger_error('Lang error: '.$identifier.':'.$locallangfile, E_USER_NOTICE);
+                            }
                             return $resultstring;
                         }
                     }
@@ -5676,6 +5741,8 @@ function get_list_of_countries() {
 
     if (!empty($string)) {
         uasort($string, 'strcoll');
+    } else {
+        print_error('countriesphpempty', '', '', $lang);
     }
 
     return $string;
@@ -6110,7 +6177,7 @@ function get_list_of_plugins($plugin='mod', $exclude='', $basedir='') {
         $dirhandle = opendir($basedir);
         while (false !== ($dir = readdir($dirhandle))) {
             $firstchar = substr($dir, 0, 1);
-            if ($firstchar == '.' or $dir == 'CVS' or $dir == '_vti_cnf' or $dir == $exclude) {
+            if ($firstchar == '.' or $dir == 'CVS' or $dir == '_vti_cnf' or $dir == 'simpletest' or $dir == $exclude) {
                 continue;
             }
             if (filetype($basedir .'/'. $dir) != 'dir') {
@@ -6261,6 +6328,39 @@ function check_php_version($version='4.1.0') {
     }
 
     return false;
+}
+
+/**
+ * Returns one or several CSS class names that match the user's browser. These can be put
+ * in the body tag of the page to apply browser-specific rules without relying on CSS hacks
+ */
+function get_browser_version_classes() {
+    $classes = '';
+    if (check_browser_version("MSIE", "0")) {
+        $classes .= 'ie ';
+        if (check_browser_version("MSIE", 8)) {
+            $classes .= 'ie8 ';
+        } elseif (check_browser_version("MSIE", 7)) {
+            $classes .= 'ie7 ';
+        } elseif (check_browser_version("MSIE", 6)) {
+            $classes .= 'ie6 ';
+        }
+    } elseif (check_browser_version("Firefox", 0) || check_browser_version("Gecko", 0) || check_browser_version("Camino", 0)) {
+        $classes .= 'gecko ';
+
+        if (preg_match('/rv\:([1-2])\.([0-9])/', $_SERVER['HTTP_USER_AGENT'], $matches)) {
+            $classes .= "gecko{$matches[1]}{$matches[2]} ";
+        }
+
+    } elseif (check_browser_version("Safari", 0)) {
+        $classes .= 'safari ';
+
+    } elseif (check_browser_version("Opera", 0)) {
+        $classes .= 'opera ';
+
+    }
+
+    return $classes;
 }
 
 /**
@@ -7126,6 +7226,8 @@ function make_unique_id_code($extra='') {
  * Code for type 1 modified from user posted comments by mediator at
  * {@link http://au.php.net/manual/en/function.ip2long.php}
  *
+ * TODO one day we will have to make this work with IP6.
+ *
  * @param string $addr    The address you are checking
  * @param string $subnetstr    The string of subnet addresses
  * @return bool
@@ -7140,7 +7242,7 @@ function address_in_subnet($addr, $subnetstr) {
         $subnet = trim($subnet);
         if (strpos($subnet, '/') !== false) { /// type 1
             list($ip, $mask) = explode('/', $subnet);
-            if ($mask === '') {
+            if ($mask === '' || $mask > 32) {
                 $mask = 32;
             }
             $mask = 0xffffffff << (32 - $mask);
@@ -7508,7 +7610,11 @@ function getremoteaddr() {
             return cleanremoteaddr($_SERVER['HTTP_X_FORWARDED_FOR']);
         }
     }
-    return cleanremoteaddr($_SERVER['REMOTE_ADDR']);
+    if (!empty($_SERVER['REMOTE_ADDR'])) {
+        return cleanremoteaddr($_SERVER['REMOTE_ADDR']);
+    } else {
+        return null;
+    }
 }
 
 /**
@@ -7960,11 +8066,11 @@ function report_session_error() {
     //clear session cookies
     if (check_php_version('5.2.0')) {
         //PHP 5.2.0
-        setcookie('MoodleSession'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure, $CFG->cookiehttponly);
-        setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure, $CFG->cookiehttponly);
+        setcookie('MoodleSession'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure, $CFG->cookiehttponly);
+        setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure, $CFG->cookiehttponly);
     } else {
-        setcookie('MoodleSession'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure);
-        setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, '', $CFG->cookiesecure);
+        setcookie('MoodleSession'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
+        setcookie('MoodleSessionTest'.$CFG->sessioncookie, '', time() - 3600, $CFG->sessioncookiepath, $CFG->sessioncookiedomain, $CFG->cookiesecure);
     }
     //increment database error counters
     if (isset($CFG->session_error_counter)) {
@@ -8248,6 +8354,19 @@ function is_primary_admin($userid){
     }else{
         return false;
     }
+}
+
+/**
+ * @return string $CFG->siteidentifier, first making sure it is properly initialised.
+ */
+function get_site_identifier() {
+    global $CFG;
+    // Check to see if it is missing. If so, initialise it.
+    if (empty($CFG->siteidentifier)) {
+        set_config('siteidentifier', random_string(32) . $_SERVER['HTTP_HOST']);
+    }
+    // Return it.
+    return $CFG->siteidentifier;
 }
 
 // vim:autoindent:expandtab:shiftwidth=4:tabstop=4:tw=140:

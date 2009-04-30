@@ -7,7 +7,7 @@
 // Moodle - Modular Object-Oriented Dynamic Learning Environment         //
 //          http://moodle.org                                            //
 //                                                                       //
-// Copyright (C) 1999 onwards Martin Dougiamas, Moodle  http://moodle.com  //
+// Copyright (C) 1999 onwards Martin Dougiamas, Moodle  http://moodle.com//
 //                                                                       //
 // This program is free software; you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -596,12 +596,19 @@ function get_course_students($courseid, $sort='ul.timeaccess', $dir='', $page=''
                 }
             }
             if ($hascap) {
+                if (empty($fields)) {
+                    $fields = '*';
+                }
                 // return users with confirmed, undeleted accounts who are not site teachers
                 // the following is a mess because of different conventions in the different user functions
                 $sort = str_replace('s.timeaccess', 'lastaccess', $sort); // site users can't be sorted by timeaccess
                 $sort = str_replace('timeaccess', 'lastaccess', $sort); // site users can't be sorted by timeaccess
                 $sort = str_replace('u.', '', $sort); // the get_user function doesn't use the u. prefix to fields
+                $sort = str_replace('ul.', '', $sort); // the get_user function doesn't use the ul. prefix to fields
+                // the following is a mess because of different conventions in the different user functions. MDL-17200
                 $fields = str_replace('u.', '', $fields);
+                $fields = str_replace('ul.', '', $fields);
+                $fields = str_replace('timeaccess', 'lastaccess', $fields);
                 if ($sort) {
                     $sort = $sort .' '. $dir;
                 }
@@ -616,7 +623,7 @@ function get_course_students($courseid, $sort='ul.timeaccess', $dir='', $page=''
                 }
 
                 return get_users(true, $search, true, $exceptions, $sort, $firstinitial, $lastinitial,
-                                  $page, $recordsperpage, $fields ? $fields : '*');
+                                  $page, $recordsperpage, $fields);
             }
         }
     }
@@ -675,7 +682,7 @@ function get_course_students($courseid, $sort='ul.timeaccess', $dir='', $page=''
                                      {$CFG->prefix}role_assignments ra on u.id=ra.userid INNER JOIN
                                      {$CFG->prefix}role_capabilities rc ON ra.roleid=rc.roleid INNER JOIN
                                      {$CFG->prefix}context c ON c.id=ra.contextid LEFT OUTER JOIN
-                                     {$CFG->prefix}user_lastaccess ul on ul.userid=ra.userid
+                                     {$CFG->prefix}user_lastaccess ul on ul.userid=ra.userid AND ul.courseid = $courseid
                                      $groupmembers
                                 WHERE $select $search $sort $dir", $page, $recordsperpage);
 
@@ -766,12 +773,13 @@ function get_course_teachers($courseid, $sort='t.authority ASC', $exceptions='')
  *
  * @param int $courseid The course in question.
  * @param string $sort ?
- * @param string $exceptions ?
+ * @param string $exceptions A comma separated list of user->id to be skiped in the result returned by the function
  * @param string $fields A comma separated list of fields to be returned from the chosen table.
- * @return object
+ * @param int $limitfrom return a subset of records, starting at this point (optional, required if $limitnum is set).
+ * @param int $limitnum return a subset comprising this many records (optional, required if $limitfrom is set).
  * @todo Finish documenting this function
  */
-function get_course_users($courseid, $sort='ul.timeaccess DESC', $exceptions='', $fields='u.*, ul.timeaccess as lastaccess') {
+function get_course_users($courseid, $sort='ul.timeaccess DESC', $exceptions='', $fields='u.*, ul.timeaccess as lastaccess', $limitfrom='', $limitnum='') {
     global $CFG;
 
     $context = get_context_instance(CONTEXT_COURSE, $courseid);
@@ -792,11 +800,15 @@ function get_course_users($courseid, $sort='ul.timeaccess DESC', $exceptions='',
                 if (empty($fields)) {
                     $fields = '*';
                 }
-                return get_users(true, '', true, $exceptions, 'lastname ASC', '', '', '', '', $fields);
+                // the following is a mess because of different conventions in the different user functions. MDL-17200
+                $fields = str_replace('u.', '', $fields);
+                $fields = str_replace('ul.', '', $fields);
+                $fields = str_replace('timeaccess', 'lastaccess', $fields);
+                return get_users(true, '', true, $exceptions, 'lastname ASC', '', '', $limitfrom, $limitnum, $fields);
             }
         }
     }
-    return get_users_by_capability($context, 'moodle/course:view', $fields, $sort, '','','',$exceptions, false);
+    return get_users_by_capability($context, 'moodle/course:view', $fields, $sort, $limitfrom, $limitnum,'',$exceptions, false);
 
 }
 
@@ -1212,12 +1224,14 @@ function add_user_to_group($groupid, $userid) {
  * @uses $CFG
  * @param int $groupid The group in question.
  * @param string $sort ?
- * @param string $exceptions ?
- * @return object
+ * @param string $exceptions A comma separated list of user->id to be skiped in the result returned by the function
+ * @param string $fields A comma separated list of fields to be returned from the chosen table.
+ * @param int $limitfrom return a subset of records, starting at this point (optional, required if $limitnum is set).
+ * @param int $limitnum return a subset comprising this many records (optional, required if $limitfrom is set).
+ * @return array array of user objects
  * @todo Finish documenting this function
  */
-function get_group_users($groupid, $sort='u.lastaccess DESC', $exceptions='',
-                         $fields='u.*') {
+function get_group_users($groupid, $sort='u.lastaccess DESC', $exceptions='', $fields='u.*', $limitfrom='', $limitnum='') {
     global $CFG;
     if (!empty($exceptions)) {
         $except = ' AND u.id NOT IN ('. $exceptions .') ';
@@ -1236,7 +1250,8 @@ function get_group_users($groupid, $sort='u.lastaccess DESC', $exceptions='',
                                    {$CFG->prefix}groups_members m
                              WHERE m.groupid = '$groupid'
                                AND m.userid = u.id $except
-                          ORDER BY $sort");
+                          ORDER BY $sort",
+                          $limitfrom, $limitnum);
 }
 
 /**

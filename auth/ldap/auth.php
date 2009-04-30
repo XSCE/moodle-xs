@@ -141,7 +141,7 @@ class auth_plugin_ldap extends auth_plugin_base {
                     if ($this->ldap_find_userdn($ldapconnection, $extusername)) {
                         $validuser = true;
                     }
-                    ldap_close($ldapconnection);
+                    $this->ldap_close();
                 }
 
                 // Shortcut here - SSO confirmed
@@ -156,19 +156,19 @@ class auth_plugin_ldap extends auth_plugin_base {
 
             //if ldap_user_dn is empty, user does not exist
             if (!$ldap_user_dn) {
-                ldap_close($ldapconnection);
+                $this->ldap_close();
                 return false;
             }
 
             // Try to bind with current username and password
             $ldap_login = @ldap_bind($ldapconnection, $ldap_user_dn, $extpassword);
-            ldap_close($ldapconnection);
+            $this->ldap_close();
             if ($ldap_login) {
                 return true;
             }
         }
         else {
-            @ldap_close($ldapconnection);
+            $this->ldap_close();
             print_error('auth_ldap_noconnect','auth','',$this->config->host_url);
         }
         return false;
@@ -242,7 +242,7 @@ class auth_plugin_ldap extends auth_plugin_base {
             }
         }
 
-        @ldap_close($ldapconnection);
+        $this->ldap_close();
         return $result;
     }
 
@@ -383,7 +383,7 @@ class auth_plugin_ldap extends auth_plugin_base {
             default:
                print_error('auth_ldap_unsupportedusertype','auth','',$this->config->user_type);
         }
-        ldap_close($ldapconnection);
+        $this->ldap_close();
         return $uadd;
 
     }
@@ -596,7 +596,7 @@ class auth_plugin_ldap extends auth_plugin_base {
         $ldapconnection = $this->ldap_connect();
 
         if (!$ldapconnection) {
-            @ldap_close($ldapconnection);
+            $this->ldap_close();
             print get_string('auth_ldap_noconnect','auth',$this->config->host_url);
             exit;
         }
@@ -838,6 +838,9 @@ class auth_plugin_ldap extends auth_plugin_base {
                 $user->confirmed  = 1;
                 $user->auth       = 'ldap';
                 $user->mnethostid = $CFG->mnet_localhost_id;
+                // get_userinfo_asobj() might have replaced $user->username with the value
+                // from the LDAP server (which can be mixed-case). Make sure it's lowercase
+                $user->username = trim(moodle_strtolower($user->username));
                 if (empty($user->lang)) {
                     $user->lang = $CFG->lang;
                 }
@@ -864,6 +867,7 @@ class auth_plugin_ldap extends auth_plugin_base {
         } else {
             print "No users to be added\n";
         }
+        $this->ldap_close();
         return true;
     }
 
@@ -968,7 +972,7 @@ class auth_plugin_ldap extends auth_plugin_base {
                 error ('auth: ldap user_activate() does not support selected usertype:"'.$this->config->user_type.'" (..yet)');
         }
         $result = ldap_modify($ldapconnection, $userdn, $newinfo);
-        ldap_close($ldapconnection);
+        $this->ldap_close();
         return $result;
     }
 
@@ -1003,7 +1007,7 @@ class auth_plugin_ldap extends auth_plugin_base {
                 error ('auth: ldap user_disable() does not support selected usertype (..yet)');
         }
         $result = ldap_modify($ldapconnection, $userdn, $newinfo);
-        ldap_close($ldapconnection);
+        $this->ldap_close();
         return $result;
     }*/
 
@@ -1188,11 +1192,11 @@ class auth_plugin_ldap extends auth_plugin_base {
             }
         } else {
             error_log("ERROR:No user found in LDAP");
-            @ldap_close($ldapconnection);
+            $this->ldap_close();
             return false;
         }
 
-        @ldap_close($ldapconnection);
+        $this->ldap_close();
 
         return true;
 
@@ -1316,7 +1320,7 @@ class auth_plugin_ldap extends auth_plugin_base {
 
         }
 
-        @ldap_close($ldapconnection);
+        $this->ldap_close();
         return $result;
     }
 
@@ -1561,6 +1565,16 @@ class auth_plugin_ldap extends auth_plugin_base {
      * @return connection result
      */
     function ldap_connect($binddn='',$bindpwd='') {
+        // Cache ldap connections (they are expensive to set up
+        // and can drain the TCP/IP ressources on the server if we 
+        // are syncing a lot of users (as we try to open a new connection
+        // to get the user details). This is the least invasive way
+        // to reuse existing connections without greater code surgery.
+        if(!empty($this->ldapconnection)) {
+            $this->ldapconns++;
+            return $this->ldapconnection;
+        }
+
         //Select bind password, With empty values use
         //ldap_bind_* variables or anonymous bind if ldap_bind_* are empty
         if ($binddn == '' and $bindpwd == '') {
@@ -1607,6 +1621,10 @@ class auth_plugin_ldap extends auth_plugin_base {
             }
 
             if ($bindresult) {
+		// Set the connection counter so we can call PHP's ldap_close()
+		// when we call $this->ldap_close() for the last 'open' connection.
+                $this->ldapconns = 1;  
+                $this->ldapconnection = $connresult;
                 return $connresult;
             }
 
@@ -1616,6 +1634,18 @@ class auth_plugin_ldap extends auth_plugin_base {
         //If any of servers are alive we have already returned connection
         print_error('auth_ldap_noconnect_all','auth','', $debuginfo);
         return false;
+    }
+
+    /**
+     * disconnects from a ldap server
+     *
+     */
+    function ldap_close() {
+        $this->ldapconns--;
+        if($this->ldapconns == 0) {
+            @ldap_close($this->ldapconnection);
+            unset($this->ldapconnection);
+        }
     }
 
     /**
@@ -1813,16 +1843,55 @@ class auth_plugin_ldap extends auth_plugin_base {
      *
      */
     function loginpage_hook() {
-        global $CFG;
+        global $CFG, $SESSION;
+ 
+        if (($_SERVER['REQUEST_METHOD'] === 'GET'         // Only on initial GET of loginpage
+                || ($_SERVER['REQUEST_METHOD'] === 'POST'
+                   && (get_referer() != strip_querystring(qualified_me()))))
+                                                           // Or when POSTed from another place
+                                                           // See MDL-14071
+           && !empty($this->config->ntlmsso_enabled)     // SSO enabled
+           && !empty($this->config->ntlmsso_subnet)      // have a subnet to test for
+           && empty($_GET['authldap_skipntlmsso'])       // haven't failed it yet
+           && (isguestuser() || !isloggedin())           // guestuser or not-logged-in users
+            && address_in_subnet($_SERVER['REMOTE_ADDR'], $this->config->ntlmsso_subnet)) {
 
-        if ($_SERVER['REQUEST_METHOD'] === 'GET'    // Only on initial GET 
-                                                    // of loginpage
-            &&!empty($this->config->ntlmsso_enabled)// SSO enabled
-            && !empty($this->config->ntlmsso_subnet)// have a subnet to test for
-            && empty($_GET['authldap_skipntlmsso']) // haven't failed it yet
-            && (isguestuser() || !isloggedin())     // guestuser or not-logged-in users
-            && address_in_subnet($_SERVER['REMOTE_ADDR'],$this->config->ntlmsso_subnet)) {
-            redirect("{$CFG->wwwroot}/auth/ldap/ntlmsso_attempt.php");
+            // First, let's remember where we were trying to get to before we got here
+            if (empty($SESSION->wantsurl)) {
+                $SESSION->wantsurl = (array_key_exists('HTTP_REFERER', $_SERVER) &&
+                                      $_SERVER['HTTP_REFERER'] != $CFG->wwwroot &&
+                                      $_SERVER['HTTP_REFERER'] != $CFG->wwwroot.'/' &&
+                                      $_SERVER['HTTP_REFERER'] != $CFG->httpswwwroot.'/login/' &&
+                                      $_SERVER['HTTP_REFERER'] != $CFG->httpswwwroot.'/login/index.php')
+                    ? $_SERVER['HTTP_REFERER'] : NULL;
+            }
+
+            // Now start the whole NTLM machinery.
+            if(!empty($this->config->ntlmsso_ie_fastpath)) {
+                // Shortcut for IE browsers: skip the attempt page at all
+                if(check_browser_version('MSIE')) {
+                    $sesskey = sesskey();
+                    redirect($CFG->wwwroot.'/auth/ldap/ntlmsso_magic.php?sesskey='.$sesskey);
+                } else {
+                    redirect($CFG->httpswwwroot.'/login/index.php?authldap_skipntlmsso=1');
+                }
+            } else {
+                redirect($CFG->wwwroot.'/auth/ldap/ntlmsso_attempt.php');
+            }
+        }
+ 
+        // No NTLM SSO, Use the normal login page instead.
+
+        // If $SESSION->wantsurl is empty and we have a 'Referer:' header, the login
+        // page insists on redirecting us to that page after user validation. If
+        // we clicked on the redirect link at the ntlmsso_finish.php page instead
+        // of waiting for the redirection to happen, then we have a 'Referer:' header
+        // we don't want to use at all. As we can't get rid of it, just point
+        // $SESSION->wantsurl to $CFG->wwwroot (after all, we came from there).
+        if (empty($SESSION->wantsurl)
+            && (get_referer() == $CFG->httpswwwroot.'/auth/ldap/ntlmsso_finish.php')) {
+
+            $SESSION->wantsurl = $CFG->wwwroot;
         }
     }
 
@@ -1845,7 +1914,14 @@ class auth_plugin_ldap extends auth_plugin_base {
      */
     function ntlmsso_magic($sesskey) {
         if (isset($_SERVER['REMOTE_USER']) && !empty($_SERVER['REMOTE_USER'])) {
-            $username = $_SERVER['REMOTE_USER'];
+
+            // HTTP __headers__ seem to be sent in ISO-8859-1 encoding
+            // (according to my reading of RFC-1945, RFC-2616 and RFC-2617 and
+            // my local tests), so we need to convert the REMOTE_USER value
+            // (i.e., what we got from the HTTP WWW-Authenticate header) into UTF-8
+            $textlib = textlib_get_instance();
+            $username = $textlib->convert($_SERVER['REMOTE_USER'], 'iso-8859-1', 'utf-8');
+
             $username = substr(strrchr($username, '\\'), 1); //strip domain info
             $username = moodle_strtolower($username); //compatibility hack
             set_cache_flag('auth/ldap/ntlmsess', $sesskey, $username, AUTH_NTLMTIMEOUT);
@@ -2002,6 +2078,8 @@ class auth_plugin_ldap extends auth_plugin_base {
             {$config->ntlmsso_enabled = 0; }
         if (!isset($config->ntlmsso_subnet))
             {$config->ntlmsso_subnet = ''; }
+        if (!isset($config->ntlmsso_ie_fastpath))
+            {$config->ntlmsso_ie_fastpath = 0; }
 
         // save settings
         set_config('host_url', $config->host_url, 'auth/ldap');
@@ -2034,6 +2112,7 @@ class auth_plugin_ldap extends auth_plugin_base {
         set_config('removeuser', $config->removeuser, 'auth/ldap');
         set_config('ntlmsso_enabled', (int)$config->ntlmsso_enabled, 'auth/ldap');
         set_config('ntlmsso_subnet', $config->ntlmsso_subnet, 'auth/ldap');
+        set_config('ntlmsso_ie_fastpath', (int)$config->ntlmsso_ie_fastpath, 'auth/ldap');
 
         return true;
     }

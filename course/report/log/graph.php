@@ -14,12 +14,11 @@
         error("Course is misconfigured");
     }
 
-    require_login($course->id);
+    require_login($course);
     $context = get_context_instance(CONTEXT_COURSE, $course->id);
 
-    if (! (has_capability('moodle/site:viewreports', $context)
-                or ($course->showreports and $USER->id == $user)) ) {
-        error("Sorry, you aren't allowed to see this.");
+    if (!$course->showreports or $USER->id != $user) {
+        require_capability('coursereport/log:view', $context);
     }
 
     if ($user) {

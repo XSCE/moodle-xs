@@ -3,9 +3,10 @@
 
 $string['autoscroll'] = 'Auto Scroll';
 $string['beep'] = 'beep';
-$string['chat:chat'] = 'Talk in a chat';
+$string['chat:chat'] = 'Access a chat room';
 $string['chat:deletelog'] = 'Delete chat logs';
 $string['chat:readlog'] = 'Read chat logs';
+$string['chat:talk'] = 'Talk in a chat';
 $string['chatintro'] = 'Introduction text';
 $string['chatname'] = 'Name of this chat room';
 $string['chatreport'] = 'Chat sessions';
@@ -49,6 +50,7 @@ $string['nomessages'] = 'No messages yet';
 $string['normalkeepalive'] = 'KeepAlive';
 $string['normalstream'] = 'Stream';
 $string['noscheduledsession'] = 'No scheduled session';
+$string['notallowenter'] = 'You are not allow to enter the chat room.';
 $string['oldping'] = 'Disconnect timeout';
 $string['pastchats'] = 'Past chat sessions';
 $string['refreshroom'] = 'Refresh room';

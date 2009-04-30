@@ -44,6 +44,8 @@ if ($hassiteconfig) { // speedup for non-admins, add all caps used on this page
     $temp->add(new admin_setting_special_calendar_weekend());
     $temp->add(new admin_setting_configtext('calendar_lookahead',get_string('configlookahead','admin'),get_string('helpupcominglookahead', 'admin'),21,PARAM_INT));
     $temp->add(new admin_setting_configtext('calendar_maxevents',get_string('configmaxevents','admin'),get_string('helpupcomingmaxevents', 'admin'),10,PARAM_INT));
+    $temp->add(new admin_setting_configcheckbox('enablecalendarexport', get_string('enablecalendarexport', 'admin'), get_string('configenablecalendarexport','admin'), 1));
+    $temp->add(new admin_setting_configtext('calendar_exportsalt', get_string('calendarexportsalt','admin'), get_string('configcalendarexportsalt', 'admin'), random_string(60)));
     $ADMIN->add('appearance', $temp);
 
     // "htmleditor" settingpage
@@ -75,6 +77,7 @@ if ($hassiteconfig) { // speedup for non-admins, add all caps used on this page
 
     $temp = new admin_settingpage('mymoodle', get_string('mymoodle', 'admin'));
     $temp->add(new admin_setting_configcheckbox('mymoodleredirect', get_string('mymoodleredirect', 'admin'), get_string('configmymoodleredirect', 'admin'), 0));
+    $temp->add(new admin_setting_configtext('mycoursesperpage', get_string('mycoursesperpage', 'admin'), get_string('configmycoursesperpage', 'admin'), 21, PARAM_INT));
     $ADMIN->add('appearance', $temp);
 
     // new CFG variable for coursemanager (what roles to display)

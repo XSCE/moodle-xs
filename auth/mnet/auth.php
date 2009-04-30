@@ -772,76 +772,76 @@ class auth_plugin_mnet extends auth_plugin_base {
                           join("\n", $mnet_request->error));
                 break;
             }
+            $mnethostlogssql = '
+            SELECT
+                mhostlogs.remoteid, mhostlogs.time, mhostlogs.userid, mhostlogs.ip,
+                mhostlogs.course, mhostlogs.module, mhostlogs.cmid, mhostlogs.action,
+                mhostlogs.url, mhostlogs.info, mhostlogs.username, c.fullname as coursename,
+                c.modinfo
+            FROM
+                (
+                    SELECT
+                        l.id as remoteid, l.time, l.userid, l.ip, l.course, l.module, l.cmid,
+                        l.action, l.url, l.info, u.username
+                    FROM
+                        ' . $CFG->prefix . 'user u
+                        INNER JOIN ' . $CFG->prefix . 'log l on l.userid = u.id
+                    WHERE
+                        u.mnethostid = ' . $mnethostid . '
+                        AND l.id > ' . $mnet_request->response['last log id'] . '
+                    ORDER BY remoteid ASC
+                    LIMIT 500
+                ) mhostlogs
+                INNER JOIN ' . $CFG->prefix . 'course c on c.id = mhostlogs.course
+            ORDER by mhostlogs.remoteid ASC';
 
-            $query = "SELECT
-                          l.id as remoteid,
-                          l.time,
-                          l.userid,
-                          l.ip,
-                          l.course,
-                          l.module,
-                          l.cmid,
-                          l.action,
-                          l.url,
-                          l.info,
-                          c.fullname as coursename,
-                          c.modinfo as modinfo,
-                          u.username
-                      FROM
-                          {$CFG->prefix}user u,
-                          {$CFG->prefix}log l,
-                          {$CFG->prefix}course c
-                      WHERE
-                          l.userid = u.id AND
-                          u.mnethostid = '$mnethostid' AND
-                          l.id > '".$mnet_request->response['last log id']."' AND
-                          c.id = l.course
-                      ORDER BY
-                          remoteid ASC";
+            $mnethostlogs = get_records_sql($mnethostlogssql);
 
-            $results = get_records_sql($query);
+            if ($mnethostlogs == false) {
+                continue;
+            }
 
-            if (false == $results) continue;
+            $processedlogs = array();
 
-            $param = array();
-
-            foreach($results as $result) {
-                if (!empty($result->modinfo) && !empty($result->cmid)) {
-                    $modinfo = unserialize($result->modinfo);
-                    unset($result->modinfo);
+            foreach($mnethostlogs as $hostlog) {
+                // Extract the name of the relevant module instance from the
+                // course modinfo if possible.
+                if (!empty($hostlog->modinfo) && !empty($hostlog->cmid)) {
+                    $modinfo = unserialize($hostlog->modinfo);
+                    unset($hostlog->modinfo);
                     $modulearray = array();
                     foreach($modinfo as $module) {
                         $modulearray[$module->cm] = urldecode($module->name);
                     }
-                    $result->resource_name = $modulearray[$result->cmid];
+                    $hostlog->resource_name = $modulearray[$hostlog->cmid];
                 } else {
-                    $result->resource_name = '';
+                    $hostlog->resource_name = '';
                 }
 
-                $param[] = array (
-                                    'remoteid'      => $result->remoteid,
-                                    'time'          => $result->time,
-                                    'userid'        => $result->userid,
-                                    'ip'            => $result->ip,
-                                    'course'        => $result->course,
-                                    'coursename'    => $result->coursename,
-                                    'module'        => $result->module,
-                                    'cmid'          => $result->cmid,
-                                    'action'        => $result->action,
-                                    'url'           => $result->url,
-                                    'info'          => $result->info,
-                                    'resource_name' => $result->resource_name,
-                                    'username'      => $result->username
+                $processedlogs[] = array (
+                                    'remoteid'      => $hostlog->remoteid,
+                                    'time'          => $hostlog->time,
+                                    'userid'        => $hostlog->userid,
+                                    'ip'            => $hostlog->ip,
+                                    'course'        => $hostlog->course,
+                                    'coursename'    => $hostlog->coursename,
+                                    'module'        => $hostlog->module,
+                                    'cmid'          => $hostlog->cmid,
+                                    'action'        => $hostlog->action,
+                                    'url'           => $hostlog->url,
+                                    'info'          => $hostlog->info,
+                                    'resource_name' => $hostlog->resource_name,
+                                    'username'      => $hostlog->username
                                  );
             }
 
-            unset($result);
+            unset($hostlog);
 
             $mnet_request = new mnet_xmlrpc_client();
             $mnet_request->set_method('auth/mnet/auth.php/refresh_log');
 
             // set $token and $useragent parameters
-            $mnet_request->add_param($param);
+            $mnet_request->add_param($processedlogs);
 
             if ($mnet_request->send($mnet_peer) === true) {
                 if ($mnet_request->response['code'] > 0) {
@@ -886,10 +886,12 @@ class auth_plugin_mnet extends auth_plugin_base {
 
             unset($logEntryObj->username);
 
+            $logEntryObj = $this->trim_logline($logEntryObj);
             $insertok = insert_record('mnet_log', addslashes_object($logEntryObj), false);
 
             if ($insertok) {
                 $MNET_REMOTE_CLIENT->last_log_id = $logEntryObj->remoteid;
+                $MNET_REMOTE_CLIENT->updateparams->last_log_id = $logEntryObj->remoteid;
             } else {
                 $returnString .= 'Record with id '.$logEntryObj->remoteid." failed to insert.\n";
             }
@@ -1351,6 +1353,25 @@ class auth_plugin_mnet extends auth_plugin_base {
             $redirect = $host->wwwroot.'/';
         }
     }
+
+    /**
+     * Trims a log line from mnet peer to limit each part to a length which can be stored in our DB
+     *
+     * @param object $logline The log information to be trimmed
+     * @return object The passed logline object trimmed to not exceed storable limits
+     */
+    function trim_logline ($logline) {
+        $limits = array('ip' => 15, 'coursename' => 40, 'module' => 20, 'action' => 40,
+                        'url' => 255);
+        foreach ($limits as $property => $limit) {
+            if (isset($logline->$property)) {
+                $logline->$property = substr($logline->$property, 0, $limit);
+            }
+        }
+
+        return $logline;
+    }
+
 
 }
 

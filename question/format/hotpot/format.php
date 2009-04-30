@@ -48,7 +48,9 @@ class qformat_hotpot extends qformat_default {
 
         // get import file name
         global $params;
-        if (isset($params) && !empty($params->choosefile)) {
+        if (! empty($this->realfilename)) {
+            $filename = $this->realfilename;
+        } else if (isset($params) && !empty($params->choosefile)) {
             // course file (Moodle >=1.6+)
             $filename = $params->choosefile;
         } else {
@@ -476,7 +478,10 @@ class qformat_hotpot extends qformat_default {
                         $question->fraction[$aa] = 1;
                     }
                 }
-                $questions[] = $question;
+                // add a sanity check for empty questions, see MDL-17779
+                if (!empty($question->questiontext)) {
+                    $questions[] = $question;
+                }
                 $q++;
             }
             $x++;

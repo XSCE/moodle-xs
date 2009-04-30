@@ -8,15 +8,19 @@ require_once($CFG->libdir.'/bennu/bennu.inc.php');
 $username = required_param('username', PARAM_TEXT);
 $authtoken = required_param('authtoken', PARAM_ALPHANUM);
 
+if (empty($CFG->enablecalendarexport)) {
+    die('no export');
+}
+
 //Fetch user information
 if (!$user = get_complete_user_data('username', $username)) {
    //No such user
-   die("No such user '$username'");
+    die('Invalid authentication');
 }
 
 //Check authentication token
-if ($authtoken != sha1($username . $user->password)) {
-    die('Invalid authentication token');
+if ($authtoken != sha1($username . $user->password . $CFG->calendar_exportsalt)) {
+    die('Invalid authentication');
 }
 
 $what = optional_param('preset_what', 'all', PARAM_ALPHA);
@@ -122,7 +126,11 @@ foreach($events as $event) {
             continue;
         }
     }
+    $hostaddress = str_replace('http://', '', $CFG->wwwroot);
+    $hostaddress = str_replace('https://', '', $hostaddress);
+
     $ev = new iCalendar_event;
+    $ev->add_property('uid', $event->id.'@'.$hostaddress);
     $ev->add_property('summary', $event->name);
     $ev->add_property('description', $event->description);
     $ev->add_property('class', 'PUBLIC'); // PUBLIC / PRIVATE / CONFIDENTIAL

@@ -85,12 +85,12 @@
 /// Check number of attempts
     $numberofpreviousattempts = count_records_select('quiz_attempts', "quiz = '{$quiz->id}' AND " .
         "userid = '{$USER->id}' AND timefinish > 0 AND preview != 1");
-    if ($quiz->attempts and $numberofpreviousattempts >= $quiz->attempts) {
+    if (!empty($quiz->attempts) and $numberofpreviousattempts >= $quiz->attempts) {
         print_error('nomoreattempts', 'quiz', "view.php?id={$cm->id}");
     }
 
 /// Check subnet access
-    if (!$ispreviewing && $quiz->subnet && !address_in_subnet(getremoteaddr(), $quiz->subnet)) {
+    if (!$ispreviewing && !empty($quiz->subnet) && !address_in_subnet(getremoteaddr(), $quiz->subnet)) {
         print_error("subneterror", "quiz", "view.php?id=$cm->id");
     }
 
@@ -99,7 +99,7 @@
         unset($SESSION->passwordcheckedquizzes[$quiz->id]);
     }
 
-    if ($quiz->password and empty($SESSION->passwordcheckedquizzes[$quiz->id])) {
+    if (!empty($quiz->password) and empty($SESSION->passwordcheckedquizzes[$quiz->id])) {
         $enteredpassword = optional_param('quizpassword', '', PARAM_RAW);
         if (optional_param('cancelpassword', false)) {
             // User clicked cancel in the password form.
@@ -142,7 +142,7 @@
         }
     }
 
-    if ($quiz->delay1 or $quiz->delay2) {
+    if (!empty($quiz->delay1) or !empty($quiz->delay2)) {
         //quiz enforced time delay
         if ($attempts = quiz_get_user_attempts($quiz->id, $USER->id)) {
             $numattempts = count($attempts);
@@ -154,11 +154,11 @@
         if ($lastattempt_obj) {
             $lastattempt = $lastattempt_obj->timefinish;
         }
-        if ($numattempts == 1 && $quiz->delay1) {
+        if ($numattempts == 1 && !empty($quiz->delay1)) {
             if ($timenow - $quiz->delay1 < $lastattempt) {
                 print_error('timedelay', 'quiz', 'view.php?q='.$quiz->id);
             }
-        } else if($numattempts > 1 && $quiz->delay2) {
+        } else if($numattempts > 1 && !empty($quiz->delay2)) {
             if ($timenow - $quiz->delay2 < $lastattempt) {
                 print_error('timedelay', 'quiz', 'view.php?q='.$quiz->id);
             }
@@ -206,12 +206,8 @@
                            "$quiz->id", $cm->id);
         }
     } else {
-        // log continuation of attempt only if some time has lapsed
-        if (($timestamp - $attempt->timemodified) > 600) { // 10 minutes have elapsed
-             add_to_log($course->id, 'quiz', 'continue attemp', // this action used to be called 'continue attempt' but the database field has only 15 characters
-                           "review.php?attempt=$attempt->id",
-                           "$quiz->id", $cm->id);
-        }
+         add_to_log($course->id, 'quiz', 'continue attemp', // this action used to be called 'continue attempt' but the database field has only 15 characters
+                       'review.php?attempt=' . $attempt->id, $quiz->id, $cm->id);
     }
     if (!$attempt->timestart) { // shouldn't really happen, just for robustness
         debugging('timestart was not set for this attempt. That should be impossible.', DEBUG_DEVELOPER);
@@ -380,9 +376,7 @@
                     $CFG->wwwroot . '/mod/quiz/attempt.php?q=' . $quiz->id . $pagebit);
         }
 
-        add_to_log($course->id, 'quiz', 'close attempt',
-                           "review.php?attempt=$attempt->id",
-                           "$quiz->id", $cm->id);
+        add_to_log($course->id, 'quiz', 'close attempt', 'review.php?attempt=' . $attempt->id, $quiz->id, $cm->id);
     }
 
 /// Update the quiz attempt and the overall grade for the quiz
@@ -463,9 +457,10 @@
     }
 
     // Start the form
-    echo '<form id="responseform" method="post" action="attempt.php?q=', s($quiz->id), '&amp;page=', s($page),
-            '" enctype="multipart/form-data"' .
-            ' onclick="this.autocomplete=\'off\'" onkeypress="return check_enter(event);">', "\n";
+    $quiz->thispageurl = $CFG->wwwroot . '/mod/quiz/attempt.php?q=' . s($quiz->id) . '&amp;page=' . s($page);
+    $quiz->cmid = $cm->id;
+    echo '<form id="responseform" method="post" action="', $quiz->thispageurl . '" enctype="multipart/form-data"' .
+            ' onclick="this.autocomplete=\'off\'" onkeypress="return check_enter(event);" accept-charset="utf-8">', "\n";
     if($quiz->timelimit > 0) {
         // Make sure javascript is enabled for time limited quizzes
         ?>

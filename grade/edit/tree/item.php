@@ -49,26 +49,26 @@ if ($mform->is_cancelled()) {
     redirect($returnurl);
 }
 
+$heading = get_string('itemsedit', 'grades');
+
 if ($grade_item = grade_item::fetch(array('id'=>$id, 'courseid'=>$courseid))) {
     // redirect if outcomeid present
     if (!empty($grade_item->outcomeid) && !empty($CFG->enableoutcomes)) {
         $url = $CFG->wwwroot.'/grade/edit/tree/outcomeitem.php?id='.$id.'&amp;courseid='.$courseid;
         redirect($gpr->add_url_params($url));
     }
-    $item = $grade_item->get_record_data();
-
-    if ($grade_item->is_course_item()) {
-        $parent_category = null;
-        $item->parentcategory = 0;
-    } else if ($grade_item->is_category_item()) {
-        $parent_category = $grade_item->get_parent_category();
-        $parent_category = $parent_category->get_parent_category();
-        $item->parentcategory = $parent_category->id;
-    } else {
-        $parent_category = $grade_item->get_parent_category();
-        $item->parentcategory = $parent_category->id;
+    if ($grade_item->is_course_item() or $grade_item->is_category_item()) {
+        $grade_category = $grade_item->get_item_category();
+        $url = $CFG->wwwroot.'/grade/edit/tree/category.php?id='.$grade_category->id.'&amp;courseid='.$courseid;
+        redirect($gpr->add_url_params($url));
     }
+
+    $item = $grade_item->get_record_data();
+    $parent_category = $grade_item->get_parent_category();
+    $item->parentcategory = $parent_category->id;
+
 } else {
+    $heading = get_string('newitem', 'grades');
     $grade_item = new grade_item(array('courseid'=>$courseid, 'itemtype'=>'manual'), false);
     $item = $grade_item->get_record_data();
     $parent_category = grade_category::fetch_course_category($courseid);
@@ -91,10 +91,8 @@ $item->gradepass       = format_float($item->gradepass, $decimalpoints);
 $item->multfactor      = format_float($item->multfactor, 4);
 $item->plusfactor      = format_float($item->plusfactor, 4);
 
-if (empty($parent_category)) {
-    $item->aggregationcoef = 0;
-} else if ($parent_category->aggregation == GRADE_AGGREGATE_SUM) {
-    $item->aggregationcoef = $item->aggregationcoef > 0 ? 1 : 0;
+if ($parent_category->aggregation == GRADE_AGGREGATE_SUM or $parent_category->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN2) {
+    $item->aggregationcoef = $item->aggregationcoef == 0 ? 0 : 1;
 } else {
     $item->aggregationcoef = format_float($item->aggregationcoef, 4);
 }
@@ -159,15 +157,7 @@ if ($data = $mform->get_data(false)) {
     redirect($returnurl);
 }
 
-$strgrades       = get_string('grades');
-$strgraderreport = get_string('graderreport', 'grades');
-$stritemsedit    = get_string('itemsedit', 'grades');
-$stritem         = get_string('item', 'grades');
-
-$navigation = grade_build_nav(__FILE__, $stritem, array('courseid' => $courseid));
-
-
-print_header_simple($strgrades . ': ' . $strgraderreport, ': ' . $stritemsedit, $navigation, '', '', true, '', navmenu($course));
+print_grade_page_head($courseid, 'edittree', null, $heading);
 
 $mform->display();
 

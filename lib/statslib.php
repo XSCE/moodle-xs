@@ -86,12 +86,29 @@ function stats_cron_daily($maxdays=1) {
         set_config('statslastdaily', $timestart);
     }
 
+    // calculate scheduled time
+    $scheduledtime = stats_get_base_daily() + $CFG->statsruntimestarthour*60*60 + $CFG->statsruntimestartminute*60;
+
+    // Note: This will work fine for sites running cron each 4 hours or less (hoppefully, 99.99% of sites). MDL-16709
+    // check to make sure we're due to run, at least 20 hours after last run
+    if (isset($CFG->statslastexecution) and ((time() - 20*60*60) < $CFG->statslastexecution)) {
+        mtrace("...preventing stats to run, last execution was less than 20 hours ago.");
+        return false;
+    // also check that we are a max of 4 hours after scheduled time, stats won't run after that
+    } else if (time() > $scheduledtime + 4*60*60) {
+        mtrace("...preventing stats to run, more than 4 hours since scheduled time.");
+        return false;
+    } else {
+        set_config('statslastexecution', time()); /// Grab this execution as last one
+    }
+
     $nextmidnight = stats_get_next_day_start($timestart);
 
     // are there any days that need to be processed?
     if ($now < $nextmidnight) {
         return true; // everything ok and up-to-date
     }
+
 
     $timeout = empty($CFG->statsmaxruntime) ? 60*60*24 : $CFG->statsmaxruntime;
 
@@ -1358,13 +1375,13 @@ function stats_get_report_options($courseid,$mode) {
     case STATS_MODE_DETAILED:
         $reportoptions[STATS_REPORT_USER_ACTIVITY] = get_string('statsreport'.STATS_REPORT_USER_ACTIVITY);
         $reportoptions[STATS_REPORT_USER_ALLACTIVITY] = get_string('statsreport'.STATS_REPORT_USER_ALLACTIVITY);
-        if (has_capability('moodle/site:viewreports', get_context_instance(CONTEXT_SYSTEM))) {
+        if (has_capability('coursereport/stats:view', get_context_instance(CONTEXT_SYSTEM))) {
             $site = get_site();
             $reportoptions[STATS_REPORT_USER_LOGINS] = get_string('statsreport'.STATS_REPORT_USER_LOGINS);
         }
         break;
     case STATS_MODE_RANKED:
-        if (has_capability('moodle/site:viewreports', get_context_instance(CONTEXT_SYSTEM))) {
+        if (has_capability('coursereport/stats:view', get_context_instance(CONTEXT_SYSTEM))) {
             $reportoptions[STATS_REPORT_ACTIVE_COURSES] = get_string('statsreport'.STATS_REPORT_ACTIVE_COURSES);
             $reportoptions[STATS_REPORT_ACTIVE_COURSES_WEIGHTED] = get_string('statsreport'.STATS_REPORT_ACTIVE_COURSES_WEIGHTED);
             $reportoptions[STATS_REPORT_PARTICIPATORY_COURSES] = get_string('statsreport'.STATS_REPORT_PARTICIPATORY_COURSES);

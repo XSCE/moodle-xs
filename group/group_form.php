@@ -43,15 +43,25 @@ class group_form extends moodleform {
     }
 
     function validation($data, $files) {
-        global $COURSE;
+        global $COURSE, $CFG;
 
         $errors = parent::validation($data, $files);
 
+        $textlib = textlib_get_instance();
+
         $name = trim(stripslashes($data['name']));
         if ($data['id'] and $group = get_record('groups', 'id', $data['id'])) {
-            if ($group->name != $name) {
+            if ($textlib->strtolower($group->name) != $textlib->strtolower($name)) {
                 if (groups_get_group_by_name($COURSE->id,  $name)) {
                     $errors['name'] = get_string('groupnameexists', 'group', $name);
+                }
+            }
+
+            if (!empty($CFG->enrol_manual_usepasswordpolicy) and $data['enrolmentkey'] != '' and $group->enrolmentkey !== $data['enrolmentkey']) {
+                // enforce password policy only if changing password
+                $errmsg = '';
+                if (!check_password_policy($data['enrolmentkey'], $errmsg)) {
+                    $errors['enrolmentkey'] = $errmsg;
                 }
             }
 

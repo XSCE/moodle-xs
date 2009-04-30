@@ -61,10 +61,19 @@ class default_questiontype {
     }
 
     /**
-     * @return boolean true if this question can only be graded manually.
+     * @return boolean true if this question type sometimes requires manual grading.
      */
     function is_manual_graded() {
         return false;
+    }
+
+    /**
+     * @param object $question a question of this type.
+     * @param string $otherquestionsinuse comma-separate list of other question ids in this attempt.
+     * @return boolean true if a particular instance of this question requires manual grading.
+     */
+    function is_question_manual_graded($question, $otherquestionsinuse) {
+        return $this->is_manual_graded();
     }
 
     /**
@@ -92,6 +101,14 @@ class default_questiontype {
      */
     function extra_question_fields() {
         return null;
+    }
+
+    /**
+        * If you use extra_question_fields, overload this function to return question id field name
+        *  in case you table use another name for this column
+        */
+    function questionid_column_name() {
+        return 'questionid';
     }
 
     /**
@@ -212,22 +229,28 @@ class default_questiontype {
     }
 
     /**
-    * Saves or updates a question after editing by a teacher
+    * Saves (creates or updates) a question.
     *
     * Given some question info and some data about the answers
     * this function parses, organises and saves the question
     * It is used by {@link question.php} when saving new data from
     * a form, and also by {@link import.php} when importing questions
     * This function in turn calls {@link save_question_options}
-    * to save question-type specific options
-    * @param object $question the question object which should be updated
-    * @param object $form the form submitted by the teacher
-    * @param object $course the course we are in
+    * to save question-type specific data.
+    *
+    * Whether we are saving a new question or updating an existing one can be
+    * determined by testing !empty($question->id). If it is not empty, we are updating.
+    *
+    * The question will be saved in category $form->category.
+    *
+    * @param object $question the question object which should be updated. For a new question will be mostly empty.
+    * @param object $form the object containing the information to save, as if from the question editing form.
+    * @param object $course not really used any more.
     * @return object On success, return the new question object. On failure,
     *       return an object as follows. If the error object has an errors field,
     *       display that as an error message. Otherwise, the editing form will be
     *       redisplayed with validation errors, from validation_errors field, which
-    *       is itself an object, shown next to the form fields.
+    *       is itself an object, shown next to the form fields. (I don't think this is accurate any more.)
     */
     function save_question($question, $form, $course) {
         global $USER;
@@ -236,15 +259,15 @@ class default_questiontype {
         // question types.
 
         // First, save the basic question itself
-        $question->name               = trim($form->name);
-        $question->questiontext       = trim($form->questiontext);
+        $question->name = trim($form->name);
+        $question->questiontext = trim($form->questiontext);
         $question->questiontextformat = $form->questiontextformat;
-        $question->parent             = isset($form->parent)? $form->parent : 0;
+        $question->parent = isset($form->parent) ? $form->parent : 0;
         $question->length = $this->actual_number_of_questions($question);
         $question->penalty = isset($form->penalty) ? $form->penalty : 0;
 
         if (empty($form->image)) {
-            $question->image = "";
+            $question->image = '';
         } else {
             $question->image = $form->image;
         }
@@ -270,33 +293,18 @@ class default_questiontype {
             $question->defaultgrade = $form->defaultgrade;
         }
 
-        if (!empty($question->id) && !empty($form->categorymoveto)) { // Question already exists
-            list($movetocategory, $movetocontextid) = explode(',', $form->categorymoveto);
-            if ($movetocategory != $question->category){
-                question_require_capability_on($question, 'move');
-                $question->category = $movetocategory;
-                //don't need to test add permission of category we are moving question to.
-                //Only categories that we have permission to add
-                //a question to will get through the form cleaning code for the select box.
-            }
-            // keep existing unique stamp code
-            $question->stamp = get_field('question', 'stamp', 'id', $question->id);
+        list($question->category) = explode(',', $form->category);
+
+        if (!empty($question->id)) {
+        /// Question already exists, update.
             $question->modifiedby = $USER->id;
             $question->timemodified = time();
             if (!update_record('question', $question)) {
                 error('Could not update question!');
             }
-        } else {         // Question is a new one
-            if (isset($form->categorymoveto)){
-                // Doing save as new question, and we have move rights.
-                list($question->category, $notused) = explode(',', $form->categorymoveto);
-                //don't need to test add permission of category we are moving question to.
-                //Only categories that we have permission to add
-                //a question to will get through the form cleaning code for the select box.
-            } else {
-                // Really a new question.
-                list($question->category, $notused) = explode(',', $form->category);
-            }
+
+        } else {
+        /// New question.
             // Set the unique code
             $question->stamp = make_unique_id_code();
             $question->createdby = $USER->id;
@@ -304,13 +312,11 @@ class default_questiontype {
             $question->timecreated = time();
             $question->timemodified = time();
             if (!$question->id = insert_record('question', $question)) {
-                print_object($question);
                 error('Could not insert new question!');
             }
         }
 
         // Now to save all the answers and type-specific options
-
         $form->id = $question->id;
         $form->qtype = $question->qtype;
         $form->category = $question->category;
@@ -356,11 +362,12 @@ class default_questiontype {
             $question_extension_table = array_shift($extra_question_fields);
 
             $function = 'update_record';
-            $options = get_record($question_extension_table, 'questionid', $question->id);
+            $questionidcolname = $this->questionid_column_name();
+            $options = get_record($question_extension_table,  $questionidcolname, $question->id);
             if (!$options) {
                 $function = 'insert_record';
                 $options = new stdClass;
-                $options->questionid = $question->id;
+                $options->$questionidcolname = $question->id;
             }
             foreach ($extra_question_fields as $field) {
                 if (!isset($question->$field)) {
@@ -428,7 +435,7 @@ class default_questiontype {
         $extra_question_fields = $this->extra_question_fields();
         if (is_array($extra_question_fields)) {
             $question_extension_table = array_shift($extra_question_fields);
-            $extra_data = get_record($question_extension_table, 'questionid', $question->id, '', '', '', '', implode(', ', $extra_question_fields));
+            $extra_data = get_record($question_extension_table, $this->questionid_column_name(), $question->id, '', '', '', '', implode(', ', $extra_question_fields));
             if ($extra_data) {
                 foreach ($extra_question_fields as $field) {
                     $question->options->$field = $extra_data->$field;
@@ -485,7 +492,8 @@ class default_questiontype {
         $extra_question_fields = $this->extra_question_fields();
         if (is_array($extra_question_fields)) {
             $question_extension_table = array_shift($extra_question_fields);
-            $success = $success && delete_records($question_extension_table, 'questionid', $questionid);
+            $success = $success && delete_records($question_extension_table,
+                    $this->questionid_column_name(), $questionid);
         }
 
         $extra_answer_fields = $this->extra_answer_fields();
@@ -730,12 +738,15 @@ class default_questiontype {
     }
 
     // Used by the following function, so that it only returns results once per quiz page.
-    var $already_done = false;
+    var $htmlheadalreadydone = false; // no private in 1.9 yet!
     /**
      * If this question type requires extra CSS or JavaScript to function,
      * then this method will return an array of <link ...> tags that reference
      * those stylesheets. This function will also call require_js()
      * from ajaxlib.php, to get any necessary JavaScript linked in too.
+     *
+     * Remember that there may be more than one question of this type on a page.
+     * try to avoid including JS and CSS more than once.
      *
      * The two parameters match the first two parameters of print_question.
      *
@@ -747,32 +758,61 @@ class default_questiontype {
      * integer array keys, which have no significance.
      */
     function get_html_head_contributions(&$question, &$state) {
+        // We only do this once for this question type, no matter how often this
+        // method is called on one page.
+        if ($this->htmlheadalreadydone) {
+            return array();
+        }
+        $this->htmlheadalreadydone = true;
+
         // By default, we link to any of the files styles.css, styles.php,
         // script.js or script.php that exist in the plugin folder.
         // Core question types should not use this mechanism. Their styles
         // should be included in the standard theme.
+        return $this->find_standard_scripts_and_css();
+    }
 
-        // We only do this once
-        // for this question type, no matter how often this method is called.
-        if ($this->already_done) {
-            return array();
-        }
-        $this->already_done = true;
+    /**
+     * Like @see{get_html_head_contributions}, but this method is for CSS and
+     * JavaScript required on the question editing page question/question.php.
+     *
+     * @return an array of bits of HTML to add to the head of pages where
+     * this question is print_question-ed in the body. The array should use
+     * integer array keys, which have no significance.
+     */
+    function get_editing_head_contributions() {
+        // By default, we link to any of the files styles.css, styles.php,
+        // script.js or script.php that exist in the plugin folder.
+        // Core question types should not use this mechanism. Their styles
+        // should be included in the standard theme.
+        return $this->find_standard_scripts_and_css();
+    }
 
+    /**
+     * Utility method used by @see{get_html_head_contributions} and
+     * @see{get_editing_head_contributions}. This looks for any of the files
+     * styles.css, styles.php, script.js or script.php that exist in the plugin
+     * folder and ensures they get included.
+     *
+     * @return array as required by get_html_head_contributions or get_editing_head_contributions.
+     */
+    function find_standard_scripts_and_css() {
         $plugindir = $this->plugin_dir();
         $baseurl = $this->plugin_baseurl();
+
+        if (file_exists($plugindir . '/script.js')) {
+            require_js($baseurl . '/script.js');
+        }
+        if (file_exists($plugindir . '/script.php')) {
+            require_js($baseurl . '/script.php');
+        }
+
         $stylesheets = array();
         if (file_exists($plugindir . '/styles.css')) {
             $stylesheets[] = 'styles.css';
         }
         if (file_exists($plugindir . '/styles.php')) {
             $stylesheets[] = 'styles.php';
-        }
-        if (file_exists($plugindir . '/script.js')) {
-            require_js($baseurl . '/script.js');
-        }
-        if (file_exists($plugindir . '/script.php')) {
-            require_js($baseurl . '/script.php');
         }
         $contributions = array();
         foreach ($stylesheets as $stylesheet) {
@@ -817,28 +857,8 @@ class default_questiontype {
         global $CFG;
         $isgraded = question_state_is_graded($state->last_graded);
 
-        // get the context so we can determine whether some extra links
-        // should be shown.
-        if (!empty($cmoptions->id)) {
-            $cm = get_coursemodule_from_instance('quiz', $cmoptions->id);
-            $context = get_context_instance(CONTEXT_MODULE, $cm->id);
-            $cmorcourseid = '&amp;cmid='.$cm->id;
-        } else if (!empty($cmoptions->course)) {
-            $context = get_context_instance(CONTEXT_COURSE, $cmoptions->course);
-            $cmorcourseid = '&amp;courseid='.$cmoptions->course;
-        } else {
-            error('Need to provide courseid or cmid to print_question.');
-        }
-
         // For editing teachers print a link to an editing popup window
-        $editlink = '';
-        if (question_has_capability_on($question, 'edit')) {
-            $stredit = get_string('edit');
-            $linktext = '<img src="'.$CFG->pixpath.'/t/edit.gif" alt="'.$stredit.'" />';
-            $editlink = link_to_popup_window('/question/question.php?inpopup=1&amp;id=' .
-                    $question->id . $cmorcourseid, 'editquestion',
-                    $linktext, false, false, $stredit, '', true);
-        }
+        $editlink = $this->get_question_edit_link($question, $cmoptions, $options);
 
         $generalfeedback = '';
         if ($isgraded && $options->generalfeedback) {
@@ -857,16 +877,61 @@ class default_questiontype {
         $comment = stripslashes($state->manualcomment);
         $commentlink = '';
 
-        if (isset($options->questioncommentlink) && $context && has_capability('mod/quiz:grade', $context)) {
+        if (!empty($options->questioncommentlink)) {
             $strcomment = get_string('commentorgrade', 'quiz');
             $question_to_comment = isset($question->randomquestionid) ? $question->randomquestionid : $question->id;
-            $commentlink = '<div class="commentlink">'.link_to_popup_window ($options->questioncommentlink.'?attempt='.$state->attempt.'&amp;question='.$question_to_comment,
-                             'commentquestion', $strcomment, 450, 650, $strcomment, 'none', true).'</div>';
+            $commentlink = link_to_popup_window($options->questioncommentlink .
+                    '?attempt=' . $state->attempt . '&amp;question=' . $question_to_comment,
+                    'commentquestion', $strcomment, 470, 740, $strcomment, 'none', true);
+            $commentlink = '<div class="commentlink">'. $commentlink .'</div>';
         }
 
         $history = $this->history($question, $state, $number, $cmoptions, $options);
 
         include "$CFG->dirroot/question/type/question.html";
+    }
+
+    /**
+     * Get a link to an edit icon for this question, if the current user is allowed
+     * to edit it.
+     *
+     * @param object $question the question object.
+     * @param object $cmoptions the options from the module. If $cmoptions->thispageurl is set
+     *      then the link will be to edit the question in this browser window, then return to
+     *      $cmoptions->thispageurl. Otherwise the link will be to edit in a popup. $cmoptions->cmid should also be set.
+     * @return string the HTML of the link, or nothing it the currenty user is not allowed to edit.
+     */
+    function get_question_edit_link($question, $cmoptions, $options) {
+        global $CFG;
+
+    /// Is this user allowed to edit this question?
+        if (!empty($options->noeditlink) || !question_has_capability_on($question, 'edit')) {
+            return '';
+        }
+
+    /// Work out the right URL.
+        $linkurl = '/question/question.php?id=' . $question->id;
+        if (!empty($cmoptions->cmid)) {
+            $linkurl .= '&amp;cmid=' . $cmoptions->cmid;
+        } else if (!empty($cmoptions->course)) {
+            $linkurl .= '&amp;courseid=' . $cmoptions->course;
+        } else {
+            error('Need to provide courseid or cmid to get_question_edit_link.');
+        }
+
+    /// Work out the contents of the link.
+        $stredit = get_string('edit');
+        $linktext = '<img src="' . $CFG->pixpath . '/t/edit.gif" alt="' . $stredit . '" />';
+
+        if (!empty($cmoptions->thispageurl)) {
+        /// The module allow editing in the same window, print an ordinary link.
+            return '<a href="' . $CFG->wwwroot . $linkurl . '&amp;returnurl=' . urlencode($cmoptions->thispageurl) .
+                    '" title="' . $stredit . '">' . $linktext . '</a>';
+        } else {
+        /// We have to edit in a pop-up.
+            return link_to_popup_window($linkurl . '&amp;inpopup=1', 'editquestion',
+                    $linktext, false, false, $stredit, '', true);
+        }
     }
 
     /*
@@ -1010,7 +1075,7 @@ class default_questiontype {
                     // print info about new penalty
                     // penalty is relevant only if the answer is not correct and further attempts are possible
                     if (($state->last_graded->raw_grade < $question->maxgrade / 1.01)
-                                and (QUESTION_EVENTCLOSEANDGRADE !== $state->event)) {
+                                and (QUESTION_EVENTCLOSEANDGRADE != $state->event)) {
 
                         if ('' !== $state->last_graded->penalty && ((float)$state->last_graded->penalty) > 0.0) {
                             // A penalty was applied so display it
@@ -1560,8 +1625,35 @@ class default_questiontype {
      * This is used in question/backuplib.php
      */
     function backup($bf,$preferences,$question,$level=6) {
-        // The default type has nothing to back up
-        return true;
+
+        $status = true;
+        $extraquestionfields = $this->extra_question_fields();
+
+        if (is_array($extraquestionfields)) {
+            $questionextensiontable = array_shift($extraquestionfields);
+            $record = get_record($questionextensiontable, $this->questionid_column_name(), $question);
+            if ($record) {
+                $tagname = strtoupper($this->name());
+                $status = $status && fwrite($bf, start_tag($tagname, $level, true));
+                foreach ($extraquestionfields as $field) {
+                    if (!isset($record->$field)) {
+                        echo "No data for field $field when backuping " .
+                                $this->name() . ' question id ' . $question;
+                        return false;
+                    }
+                    fwrite($bf, full_tag(strtoupper($field), $level + 1, false, $record->$field));
+                }
+                $status = $status && fwrite($bf, end_tag($tagname, $level, true));
+            }
+        }
+
+        $extraasnwersfields = $this->extra_answer_fields();
+        if (is_array($extraasnwersfields)) {
+            //TODO backup the answers, with any extra data.
+        } else {
+            $status = $status && question_backup_answers($bf, $preferences, $question);
+        }
+        return $status;
     }
 
 /// RESTORE FUNCTIONS /////////////////
@@ -1572,8 +1664,29 @@ class default_questiontype {
      * This is used in question/restorelib.php
      */
     function restore($old_question_id,$new_question_id,$info,$restore) {
-        // The default question type has nothing to restore
-        return true;
+
+        $status = true;
+        $extraquestionfields = $this->extra_question_fields();
+
+        if (is_array($extraquestionfields)) {
+            $questionextensiontable = array_shift($extraquestionfields);
+            $tagname = strtoupper($this->name());
+            $recordinfo = $info['#'][$tagname][0];
+
+            $record = new stdClass;
+            $qidcolname = $this->questionid_column_name();
+            $record->$qidcolname = $new_question_id;
+            foreach ($extraquestionfields as $field) {
+                $record->$field = backup_todb($recordinfo['#'][strtoupper($field)]['0']['#']);
+            }
+            if (!insert_record($questionextensiontable, $record)) {
+                echo "Can't insert record in $questionextensiontable when restoring " .
+                                $this->name() . ' question id ' . $question;
+                $status = false;
+            }
+        }
+        //TODO restore extra data in answers
+        return $status;
     }
 
     function restore_map($old_question_id,$new_question_id,$info,$restore) {

@@ -363,7 +363,11 @@ class problem_000008 extends problem_base {
         }
         $oldmemlimit = get_real_size($oldmemlimit);
         //now lets change the memory limit to something unique below 128M==134217728
-        @ini_set('memory_limit', 134217720);
+        if (empty($CFG->extramemorylimit)) {
+            raise_memory_limit('128M');
+        } else {
+            raise_memory_limit($CFG->extramemorylimit);
+        }
         $testmemlimit = get_real_size(@ini_get('memory_limit'));
         //verify the change had any effect at all
         if ($oldmemlimit == $testmemlimit) {
@@ -374,7 +378,7 @@ class problem_000008 extends problem_base {
                 return false;
             }
         }
-        @ini_set('memory_limit', $oldmemlimit);
+        reduce_memory_limit($oldmemlimit);
         return false;
     }
     function severity() {
@@ -660,10 +664,10 @@ class problem_000015 extends problem_base {
     function solution() {
         global $CFG;
         return '<p>You can delete the empty categories by executing the following SQL:</p><pre>
-DELETE FROM ' . $CFG->prefix . 'question_categories qc
+DELETE FROM ' . $CFG->prefix . 'question_categories
 WHERE
-    NOT EXISTS (SELECT * FROM ' . $CFG->prefix . 'question q WHERE q.category = qc.id)
-AND NOT EXISTS (SELECT * FROM ' . $CFG->prefix . 'context con WHERE qc.contextid = con.id)
+    NOT EXISTS (SELECT * FROM ' . $CFG->prefix . 'question q WHERE q.category = ' . $CFG->prefix . 'question_categories.id)
+AND NOT EXISTS (SELECT * FROM ' . $CFG->prefix . 'context con WHERE contextid = con.id)
         </pre><p>Any remaining categories that contain questions will require more thought. ' .
         'People in the <a href="http://moodle.org/mod/forum/view.php?f=121">Quiz forum</a> may be able to help.</p>';
     }

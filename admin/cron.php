@@ -40,7 +40,7 @@
     }
     if (!empty($CFG->showcrondebugging)) {
         $CFG->debug = DEBUG_DEVELOPER;
-        $CFG->displaydebug = true;
+        $CFG->debugdisplay = true;
     }
 
 /// extra safety
@@ -245,7 +245,7 @@
             while ($assign = rs_fetch_next_record($rs)) {
                 if ($context = get_context_instance(CONTEXT_COURSE, $assign->courseid)) {
                     if (role_unassign(0, $assign->userid, 0, $context->id)) {
-                        mtrace("Deleted assignment for user $assign->userid from course $assign->courseid");
+                        mtrace("removing user $assign->userid from course $assign->courseid as they have not accessed the course for over $CFG->longtimenosee days");
                     }
                 }
             }
@@ -425,6 +425,23 @@
         }
     }
 
+/// Run the auth cron, if any
+/// before enrolments because it might add users that will be needed in enrol plugins
+    $auths = get_enabled_auth_plugins();
+
+    mtrace("Running auth crons if required...");
+    foreach ($auths as $auth) {
+        $authplugin = get_auth_plugin($auth);
+        if (method_exists($authplugin, 'cron')) {
+            mtrace("Running cron for auth/$auth...");
+            $authplugin->cron();
+            if (!empty($authplugin->log)) {
+                mtrace($authplugin->log);
+            }
+        }
+        unset($authplugin);
+    }
+
 /// Run the enrolment cron, if any
     if (!($plugins = explode(',', $CFG->enrol_plugins_enabled))) {
         $plugins = array($CFG->enrol);
@@ -441,30 +458,15 @@
         unset($enrol);
     }
 
-/// Run the auth cron, if any
-    $auths = get_enabled_auth_plugins();
-
-    mtrace("Running auth crons if required...");
-    foreach ($auths as $auth) {
-        $authplugin = get_auth_plugin($auth);
-        if (method_exists($authplugin, 'cron')) {
-            mtrace("Running cron for auth/$auth...");
-            $authplugin->cron();
-            if (!empty($authplugin->log)) {
-                mtrace($authplugin->log);
-            }
-        }
-        unset($authplugin);
-    }
-
     if (!empty($CFG->enablestats) and empty($CFG->disablestatsprocessing)) {
         require_once($CFG->dirroot.'/lib/statslib.php');
         // check we're not before our runtime
         $timetocheck = stats_get_base_daily() + $CFG->statsruntimestarthour*60*60 + $CFG->statsruntimestartminute*60;
 
         if (time() > $timetocheck) {
-            // process max 31 days per cron execution
-            if (stats_cron_daily(31)) {
+            // process configured number of days as max (defaulting to 31)
+            $maxdays = empty($CFG->statsruntimedays) ? 31 : abs($CFG->statsruntimedays);
+            if (stats_cron_daily($maxdays)) {
                 if (stats_cron_weekly()) {
                     if (stats_cron_monthly()) {
                         stats_clean_old();
