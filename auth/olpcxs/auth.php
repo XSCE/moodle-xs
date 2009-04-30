@@ -332,8 +332,10 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 
         // In this mode, remove other SRGs
         $ejsrg = $ej->srg_list_groups();
+        $seenonlinesrg = false;
         foreach ($ejsrg as $ejg) {
             if ($ejg === 'Online') {
+                $seenonlinesrg = true;
                 continue;
             }
             $ej->srg_delete($ejg);
@@ -341,10 +343,10 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 
         // Check the Online SRG is set and configured
         // correctly
-        $info = $ej->srg_get_info('Online');
-        if ($info === null) {
+        if (!$seenonlinesrg) {
             $ej->srg_create('Online', 'Online Group - created from moodle');
         } else {
+            $info = $ej->srg_get_info('Online');
             if ($info['online_users']==='true') {
                 return true;
             }
