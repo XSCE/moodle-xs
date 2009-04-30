@@ -357,7 +357,7 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         global $CFG;
         $this->idmgr_sync();
 
-        if (!empty($CFG->jabberxs_enrolments_by_course)) {
+        if (!empty($CFG->presencebycourse)) {
             $this->ejabberd_sync();
         } else {
             $this->ejabberd_checkfixonline();
