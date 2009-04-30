@@ -14,13 +14,18 @@ define('FRONTPAGECOURSELIST',     '1');
 define('FRONTPAGECATEGORYNAMES',  '2');
 define('FRONTPAGETOPICONLY',      '3');
 define('FRONTPAGECATEGORYCOMBO',  '4');
-define('FRONTPAGECOURSELIMIT',    200);         // maximum number of courses displayed on the frontpage
+if (!defined('FRONTPAGECOURSELIMIT')) {
+    define('FRONTPAGECOURSELIMIT',    200);     // maximum number of courses displayed on the frontpage
+}
 define('EXCELROWS', 65535);
 define('FIRSTUSEDEXCELROW', 3);
 
 define('MOD_CLASS_ACTIVITY', 0);
 define('MOD_CLASS_RESOURCE', 1);
 
+if (!defined('MAX_MODINFO_CACHE_SIZE')) { 
+    define('MAX_MODINFO_CACHE_SIZE', 10);
+}
 
 function make_log_url($module, $url) {
     switch ($module) {
@@ -31,26 +36,58 @@ function make_log_url($module, $url) {
         case 'admin':
         case 'calendar':
         case 'mnet course':
-            return "/course/$url";
+            if (strpos($url, '../') === 0) {
+                $url = ltrim($url, '.');
+            } else {
+                $url = "/course/$url";
+            }
             break;
         case 'user':
         case 'blog':
-            return "/$module/$url";
+            $url = "/$module/$url";
             break;
         case 'upload':
-            return $url;
+            $url = $url;
             break;
         case 'library':
         case '':
-            return '/';
+            $url = '/';
             break;
         case 'message':
-            return "/message/$url";
+            $url = "/message/$url";
+            break;
+        case 'notes':
+            $url = "/notes/$url";
             break;
         default:
-            return "/mod/$module/$url";
+            $url = "/mod/$module/$url";
             break;
     }
+
+    //now let's sanitise urls - there might be some ugly nasties:-(
+    $parts = explode('?', $url);
+    $script = array_shift($parts);
+    if (strpos($script, 'http') === 0) {
+        $script = clean_param($script, PARAM_URL);
+    } else {
+        $script = clean_param($script, PARAM_PATH);
+    }
+
+    $query = '';
+    if ($parts) {
+        $query = implode('', $parts);
+        $query = str_replace('&amp;', '&', $query); // both & and &amp; are stored in db :-|
+        $parts = explode('&', $query);
+        $eq = urlencode('=');
+        foreach ($parts as $key=>$part) {
+            $part = urlencode(urldecode($part));
+            $part = str_replace($eq, '=', $part);
+            $parts[$key] = $part;
+        }
+        $query = '?'.implode('&amp;', $parts);
+    }
+
+    return $script.$query;
 }
 
 
@@ -301,10 +338,6 @@ function print_log($course, $user=0, $date=0, $order="l.time ASC", $page=0, $per
         $tl=textlib_get_instance();
         $brokenurl=($tl->strlen($log->url)==100 && $tl->substr($log->url,97)=='...');
 
-        $log->url  = strip_tags(urldecode($log->url));   // Some XSS protection
-        $log->info = strip_tags(urldecode($log->info));  // Some XSS protection
-        $log->url  = s($log->url); /// XSS protection and XHTML compatibility - should be in link_to_popup_window() instead!!
-
         echo '<tr class="r'.$row.'">';
         if ($course->id == SITEID) {
             echo "<td class=\"cell c0\">\n";
@@ -417,10 +450,6 @@ function print_mnet_log($hostid, $course, $user=0, $date=0, $order="l.time ASC",
         //Filter log->info
         $log->info = format_string($log->info);
 
-        $log->url  = strip_tags(urldecode($log->url));   // Some XSS protection
-        $log->info = strip_tags(urldecode($log->info));  // Some XSS protection
-        $log->url  = str_replace('&', '&amp;', $log->url); /// XHTML compatibility
-
         echo '<tr class="r'.$row.'">';
         if ($course->id == SITEID) {
             echo "<td class=\"r$row c0\" >\n";
@@ -512,10 +541,7 @@ function print_log_csv($course, $user, $date, $order='l.time DESC', $modname,
 
         //Filter log->info
         $log->info = format_string($log->info);
-
-        $log->url  = strip_tags(urldecode($log->url));     // Some XSS protection
         $log->info = strip_tags(urldecode($log->info));    // Some XSS protection
-        $log->url  = str_replace('&', '&amp;', $log->url); // XHTML compatibility
 
         $firstField = $courses[$log->course];
         $fullname = fullname($log, has_capability('moodle/site:viewfullnames', get_context_instance(CONTEXT_COURSE, $course->id)));
@@ -758,7 +784,7 @@ function print_log_graph($course, $userid=0, $type="course.png", $date=0) {
         echo "(".get_string("gdneed").")";
     } else {
         // MDL-10818, do not display broken graph when user has no permission to view graph
-        if (has_capability('moodle/site:viewreports', get_context_instance(CONTEXT_COURSE, $course->id)) ||
+        if (has_capability('coursereport/log:view', get_context_instance(CONTEXT_COURSE, $course->id)) ||
             ($course->showreports and $USER->id == $userid)) {
             echo '<img src="'.$CFG->wwwroot.'/course/report/log/graph.php?id='.$course->id.
                  '&amp;user='.$userid.'&amp;type='.$type.'&amp;date='.$date.'" alt="" />';
@@ -1088,15 +1114,8 @@ function &get_fast_modinfo(&$course, $userid=0) {
 
     $modlurals = array();
 
-    $cmids    = array();
-    $contexts = null;
-    foreach ($info as $mod) {
-        $cmids[$mod->cm] = $mod->cm;
-    }
-    if ($cmids) {
-        // preload all module contexts with one query
-        $contexts = get_context_instance(CONTEXT_MODULE, $cmids);
-    }
+    // If we haven't already preloaded contexts for the course, do it now
+    preload_course_contexts($course->id);
 
     foreach ($info as $mod) {
         if (empty($mod->name)) {
@@ -1128,11 +1147,14 @@ function &get_fast_modinfo(&$course, $userid=0) {
         }
         $cm->modplural = $modlurals[$cm->modname];
 
-        if (!$cm->visible and !has_capability('moodle/course:viewhiddenactivities', $contexts[$cm->id], $userid)) {
+        $modcontext = get_context_instance(CONTEXT_MODULE,$cm->id);
+
+        if (!$cm->visible and !has_capability('moodle/course:viewhiddenactivities', 
+            $modcontext, $userid)) {
             $cm->uservisible = false;
 
         } else if (!empty($CFG->enablegroupings) and !empty($cm->groupmembersonly)
-                and !has_capability('moodle/site:accessallgroups', $contexts[$cm->id], $userid)) {
+                and !has_capability('moodle/site:accessallgroups', $modcontext, $userid)) {
             if (is_null($modinfo->groups)) {
                 $modinfo->groups = groups_get_user_groups($course->id, $userid);
             }
@@ -1158,6 +1180,11 @@ function &get_fast_modinfo(&$course, $userid=0) {
 
     unset($cache[$course->id]); // prevent potential reference problems when switching users
     $cache[$course->id] = $modinfo;
+
+    // Ensure cache does not use too much RAM
+    if (count($cache) > MAX_MODINFO_CACHE_SIZE) {
+        array_shift($cache);
+    }
 
     return $cache[$course->id];
 }
@@ -1533,6 +1560,21 @@ function print_section_add_menus($course, $section, $modnames, $vertical=false, 
 }
 
 /**
+ * Return the course category context for the category with id $categoryid, except
+ * that if $categoryid is 0, return the system context.
+ *
+ * @param integer $categoryid a category id or 0.
+ * @return object the corresponding context
+ */
+function get_category_or_system_context($categoryid) {
+    if ($categoryid) {
+        return get_context_instance(CONTEXT_COURSECAT, $categoryid);
+    } else {
+        return get_context_instance(CONTEXT_SYSTEM);
+    }
+}
+
+/**
  * Rebuilds the cached list of course activities stored in the database
  * @param int $courseid - id of course to rebuil, empty means all
  * @param boolean $clearonly - only clear the modinfo fields, gets rebuild automatically on the fly
@@ -1578,10 +1620,14 @@ function rebuild_course_cache($courseid=0, $clearonly=false) {
     get_fast_modinfo($reset);
 }
 
-function get_child_categories($parent) {
-/// Returns an array of the children categories for the given category
-/// ID by caching all of the categories in a static hash
-
+/**
+ * Gets the child categories of a given coures category. Uses a static cache
+ * to make repeat calls efficient.
+ *
+ * @param unknown_type $parentid the id of a course category.
+ * @return array all the child course categories.
+ */
+function get_child_categories($parentid) {
     static $allcategories = null;
 
     // only fill in this variable the first time
@@ -1597,18 +1643,51 @@ function get_child_categories($parent) {
         }
     }
 
-    if (empty($allcategories[$parent])) {
+    if (empty($allcategories[$parentid])) {
         return array();
     } else {
-        return $allcategories[$parent];
+        return $allcategories[$parentid];
     }
 }
 
-
-function make_categories_list(&$list, &$parents, $category=NULL, $path="") {
-/// Given an empty array, this function recursively travels the
-/// categories, building up a nice list for display.  It also makes
-/// an array that list all the parents for each category.
+/**
+ * This function recursively travels the categories, building up a nice list
+ * for display. It also makes an array that list all the parents for each
+ * category.
+ *
+ * For example, if you have a tree of categories like:
+ *   Miscellaneous (id = 1)
+ *      Subcategory (id = 2)
+ *         Sub-subcategory (id = 4)
+ *   Other category (id = 3)
+ * Then after calling this function you will have
+ * $list = array(1 => 'Miscellaneous', 2 => 'Miscellaneous / Subcategory',
+ *      4 => 'Miscellaneous / Subcategory / Sub-subcategory',
+ *      3 => 'Other category');
+ * $parents = array(2 => array(1), 4 => array(1, 2));
+ *
+ * If you specify $requiredcapability, then only categories where the current
+ * user has that capability will be added to $list, although all categories
+ * will still be added to $parents, and if you only have $requiredcapability
+ * in a child category, not the parent, then the child catgegory will still be
+ * included.
+ *
+ * If you specify the option $excluded, then that category, and all its children,
+ * are omitted from the tree. This is useful when you are doing something like
+ * moving categories, where you do not want to allow people to move a category
+ * to be the child of itself.
+ *
+ * @param array $list For output, accumulates an array categoryid => full category path name
+ * @param array $parents For output, accumulates an array categoryid => list of parent category ids.
+ * @param string/array $requiredcapability if given, only categories where the current
+ *      user has this capability will be added to $list. Can also be an array of capabilities,
+ *      in which case they are all required.
+ * @param integer $excludeid Omit this category and its children from the lists built.
+ * @param object $category Build the tree starting at this category - otherwise starts at the top level.
+ * @param string $path For internal use, as part of recursive calls.
+ */
+function make_categories_list(&$list, &$parents, $requiredcapability = '',
+        $excludeid = 0, $category = NULL, $path = "") {
 
     // initialize the arrays if needed
     if (!is_array($list)) {
@@ -1618,18 +1697,38 @@ function make_categories_list(&$list, &$parents, $category=NULL, $path="") {
         $parents = array();
     }
 
-    if ($category) {
+    if (empty($category)) {
+        // Start at the top level.
+        $category = new stdClass;
+        $category->id = 0;
+    } else {
+        // This is the excluded category, don't include it.
+        if ($excludeid > 0 && $excludeid == $category->id) {
+            return;
+        }
+
+        // Update $path.
         if ($path) {
             $path = $path.' / '.format_string($category->name);
         } else {
             $path = format_string($category->name);
         }
-        $list[$category->id] = $path;
-    } else {
-        $category->id = 0;
+
+        // Add this category to $list, if the permissions check out.
+        if (empty($requiredcapability)) {
+            $list[$category->id] = $path;
+
+        } else {
+            ensure_context_subobj_present($category, CONTEXT_COURSECAT);
+            $requiredcapability = (array)$requiredcapability;
+            if (has_all_capabilities($requiredcapability, $category->context)) {
+                $list[$category->id] = $path;
+            }
+        }
     }
 
-    if ($categories = get_child_categories($category->id)) {   // Print all the children recursively
+    // Add all the children recursively, while updating the parents array.
+    if ($categories = get_child_categories($category->id)) {
         foreach ($categories as $cat) {
             if (!empty($category->id)) {
                 if (isset($parents[$category->id])) {
@@ -1637,18 +1736,18 @@ function make_categories_list(&$list, &$parents, $category=NULL, $path="") {
                 }
                 $parents[$cat->id][] = $category->id;
             }
-            make_categories_list($list, $parents, $cat, $path);
+            make_categories_list($list, $parents, $requiredcapability, $excludeid, $cat, $path);
         }
     }
 }
 
-
-function print_whole_category_list($category=NULL, $displaylist=NULL, $parentslist=NULL, $depth=-1, $files = true) {
+function print_whole_category_list($category=NULL, $displaylist=NULL, $parentslist=NULL, $depth=-1, $showcourses = true) {
 /// Recursive function to print out all the categories in a nice format
 /// with or without courses included
     global $CFG;
 
-    if (isset($CFG->max_category_depth) && ($depth >= $CFG->max_category_depth)) {
+    // maxcategorydepth == 0 meant no limit
+    if (!empty($CFG->maxcategorydepth) && $depth >= $CFG->maxcategorydepth) {
         return;
     }
 
@@ -1657,8 +1756,8 @@ function print_whole_category_list($category=NULL, $displaylist=NULL, $parentsli
     }
 
     if ($category) {
-        if ($category->visible or has_capability('moodle/course:update', get_context_instance(CONTEXT_SYSTEM))) {
-            print_category_info($category, $depth, $files);
+        if ($category->visible or has_capability('moodle/category:viewhiddencategories', get_context_instance(CONTEXT_SYSTEM))) {
+            print_category_info($category, $depth, $showcourses);
         } else {
             return;  // Don't bother printing children of invisible categories
         }
@@ -1681,7 +1780,7 @@ function print_whole_category_list($category=NULL, $displaylist=NULL, $parentsli
             $down = $last ? false : true;
             $first = false;
 
-            print_whole_category_list($cat, $displaylist, $parentslist, $depth + 1, $files);
+            print_whole_category_list($cat, $displaylist, $parentslist, $depth + 1, $showcourses);
         }
     }
 }
@@ -1702,7 +1801,7 @@ function make_categories_options() {
     return $cats;
 }
 
-function print_category_info($category, $depth, $files = false) {
+function print_category_info($category, $depth, $showcourses = false) {
 /// Prints the category info in indented fashion
 /// This function is only used by print_whole_category_list() above
 
@@ -1718,7 +1817,7 @@ function print_category_info($category, $depth, $files = false) {
     $catlinkcss = $category->visible ? '' : ' class="dimmed" ';
 
     $coursecount = count_records('course') <= FRONTPAGECOURSELIMIT;
-    if ($files and $coursecount) {
+    if ($showcourses and $coursecount) {
         $catimage = '<img src="'.$CFG->pixpath.'/i/course.gif" alt="" />';
     } else {
         $catimage = "&nbsp;";
@@ -1727,7 +1826,7 @@ function print_category_info($category, $depth, $files = false) {
     echo "\n\n".'<table class="categorylist">';
 
     $courses = get_courses($category->id, 'c.sortorder ASC', 'c.id,c.sortorder,c.visible,c.fullname,c.shortname,c.password,c.summary,c.guest,c.cost,c.currency');
-    if ($files and $coursecount) {
+    if ($showcourses and $coursecount) {
 
         echo '<tr>';
 
@@ -1746,7 +1845,12 @@ function print_category_info($category, $depth, $files = false) {
         echo '<td class="category info">&nbsp;</td>';
         echo '</tr>';
 
-        if ($courses && !(isset($CFG->max_category_depth)&&($depth>=$CFG->max_category_depth-1))) {
+        // does the depth exceed maxcategorydepth
+        // maxcategorydepth == 0 or unset meant no limit
+
+        $limit = !(isset($CFG->maxcategorydepth) && ($depth >= $CFG->maxcategorydepth-1));
+
+        if ($courses && ($limit || $CFG->maxcategorydepth == 0)) {
             foreach ($courses as $course) {
                 $linkcss = $course->visible ? '' : ' class="dimmed" ';
                 echo '<tr><td valign="top">&nbsp;';
@@ -1798,7 +1902,62 @@ function print_category_info($category, $depth, $files = false) {
     echo '</table>';
 }
 
+/**
+ * Print the buttons relating to course requests.
+ *
+ * @param object $systemcontext the system context.
+ */
+function print_course_request_buttons($systemcontext) {
+    global $CFG;
+    if (empty($CFG->enablecourserequests)) {
+        return;
+    }
+    if (isloggedin() && !isguestuser() && !has_capability('moodle/course:create', $systemcontext) && has_capability('moodle/course:request', $systemcontext)) {
+    /// Print a button to request a new course
+        print_single_button('request.php', NULL, get_string('requestcourse'), 'get');
+    }
+    /// Print a button to manage pending requests
+    if (has_capability('moodle/site:approvecourse', $systemcontext)) {
+        print_single_button('pending.php', NULL, get_string('coursespending'), 'get', '_self', false, '', !record_exists('course_request'));
+    }
+}
 
+/**
+ * Prints the turn editing on/off button on course/index.php or course/category.php.
+ *
+ * @param integer $categoryid The id of the category we are showing, or 0 for system context.
+ * @return string HTML of the editing button, or empty string, if this user is not allowed
+ *      to see it.
+ */
+function update_category_button($categoryid = 0) {
+    global $CFG, $USER;
+
+    // Check permissions.
+    $context = get_category_or_system_context($categoryid);
+    if (!has_any_capability(array('moodle/category:manage', 'moodle/course:create'), $context)) {
+        return '';
+    }
+
+    // Work out the appropriate action.
+    if (!empty($USER->categoryediting)) {
+        $label = get_string('turneditingoff');
+        $edit = 'off';
+    } else {
+        $label = get_string('turneditingon');
+        $edit = 'on';
+    }
+
+    // Generate the button HTML.
+    $options = array('categoryedit' => $edit, 'sesskey' => sesskey());
+    if ($categoryid) {
+        $options['id'] = $categoryid;
+        $page = 'category.php';
+    } else {
+        $page = 'index.php';
+    }
+    return print_single_button($CFG->wwwroot . '/course/' . $page, $options,
+            $label, 'get', '', true);
+}
 
 function print_courses($category) {
 /// Category is 0 (for all courses) or an object
@@ -1847,13 +2006,15 @@ function print_courses($category) {
         print_single_button($CFG->wwwroot.'/course/edit.php', $options, get_string("addnewcourse"));
         echo '</div>';
     }
-
-
-
 }
 
-
-function print_course($course) {
+/**
+ * Print a description of a course, suitable for browsing in a list.
+ *
+ * @param object $course the course object.
+ * @param string $highlightterms (optional) some search terms that should be highlighted in the display.
+ */
+function print_course($course, $highlightterms = '') {
 
     global $CFG, $USER;
 
@@ -1869,7 +2030,7 @@ function print_course($course) {
     echo '<div class="info">';
     echo '<div class="name"><a title="'.get_string('entercourse').'"'.
          $linkcss.' href="'.$CFG->wwwroot.'/course/view.php?id='.$course->id.'">'.
-         format_string($course->fullname).'</a></div>';
+         highlight($highlightterms, format_string($course->fullname)).'</a></div>';
 
     /// first find all roles that are supposed to be displayed
 
@@ -1956,11 +2117,10 @@ function print_course($course) {
     $options = NULL;
     $options->noclean = true;
     $options->para = false;
-    echo format_text($course->summary, FORMAT_MOODLE, $options,  $course->id);
+    echo highlight($highlightterms, format_text($course->summary, FORMAT_MOODLE, $options,  $course->id));
     echo '</div>';
     echo '</div>';
 }
-
 
 function print_my_moodle() {
 /// Prints custom user information on the home page.
@@ -1989,7 +2149,7 @@ function print_my_moodle() {
                     continue;
                 }
                 echo '<li>';
-                print_course($course, "100%");
+                print_course($course);
                 echo "</li>\n";
             }
             echo "</ul>\n";
@@ -2269,8 +2429,9 @@ function delete_course_module($id) {
         foreach ($grade_items as $grade_item) {
             $grade_item->delete('moddelete');
         }
-
     }
+
+    delete_context(CONTEXT_MODULE, $cm->id);
     return delete_records('course_modules', 'id', $cm->id);
 }
 
@@ -3070,8 +3231,40 @@ function can_delete_course($courseid) {
              && has_capability('moodle/course:manageactivities', $context)) );
 }
 
+/**
+ * Save the Your name for 'Some role' strings.
+ *
+ * @param integer $courseid the id of this course.
+ * @param array $data the data that came from the course settings form.
+ */
+function save_local_role_names($courseid, $data) {
+    $context = get_context_instance(CONTEXT_COURSE, $courseid);
 
-/*
+    foreach ($data as $fieldname => $value) {
+        if (!strstr($fieldname, 'role_')) {
+            continue;
+        }
+        list($ignored, $roleid) = explode('_', $fieldname);
+
+        // make up our mind whether we want to delete, update or insert
+        if (!$value) {
+            delete_records('role_names', 'contextid', $context->id, 'roleid', $roleid);
+
+        } else if ($rolename = get_record('role_names', 'contextid', $context->id, 'roleid', $roleid)) {
+            $rolename->name = $value;
+            update_record('role_names', $rolename);
+
+        } else {
+            $rolename = new stdClass;
+            $rolename->contextid = $context->id;
+            $rolename->roleid = $roleid;
+            $rolename->name = $value;
+            insert_record('role_names', $rolename, false);
+        }
+    }
+}
+
+/**
  * Create a course and either return a $course object or false
  *
  * @param object $data  - all the data needed for an entry in the 'course' table
@@ -3116,7 +3309,10 @@ function create_course($data) {
 
         add_to_log(SITEID, 'course', 'new', 'view.php?id='.$course->id, $data->fullname.' (ID '.$course->id.')');
 
-        //trigger events
+        // Save any custom role names.
+        save_local_role_names($course->id, $data);
+
+        // Trigger events
         events_trigger('course_created', $course);
 
         return $course;
@@ -3124,7 +3320,6 @@ function create_course($data) {
 
     return false;   // error
 }
-
 
 /**
  * Update a course and return true or false
@@ -3177,41 +3372,10 @@ function update_course($data) {
         $page = page_create_object(PAGE_COURSE_VIEW, $course->id);
         blocks_remove_inappropriate($page);
 
-        // put custom role names into db
-        $context = get_context_instance(CONTEXT_COURSE, $course->id);
+        // Save any custom role names.
+        save_local_role_names($course->id, $data);
 
-        foreach ($data as $dname => $dvalue) {
-
-            // is this the right param?
-            $dvalue = clean_param($dvalue, PARAM_NOTAGS);
-
-            if (!strstr($dname, 'role_')) {
-                continue;
-            }
-
-            $dt = explode('_', $dname);
-            $roleid = $dt[1];
-            // make up our mind whether we want to delete, update or insert
-
-            if (empty($dvalue)) {
-
-                delete_records('role_names', 'contextid', $context->id, 'roleid', $roleid);
-
-            } else if ($t = get_record('role_names', 'contextid', $context->id, 'roleid', $roleid)) {
-
-                $t->name = $dvalue;
-                update_record('role_names', $t);
-
-            } else {
-
-                $t->contextid = $context->id;
-                $t->roleid = $roleid;
-                $t->name = $dvalue;
-                insert_record('role_names', $t);
-            }
-
-        }
-        //trigger events
+        // Trigger events
         events_trigger('course_updated', $course);
 
         return true;

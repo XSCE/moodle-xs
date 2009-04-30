@@ -23,7 +23,7 @@
 //                                                                       //
 ///////////////////////////////////////////////////////////////////////////
 
-require '../../../config.php';
+require_once '../../../config.php';
 require_once $CFG->libdir.'/gradelib.php';
 require_once $CFG->dirroot.'/grade/lib.php';
 require_once 'edit_form.php';
@@ -133,12 +133,7 @@ if ($admin) {
     admin_externalpage_print_header();
 
 } else {
-    $navigation = grade_build_nav(__FILE__, $pagename, $COURSE->id);
-    /// Print header
-    print_header_simple($strgrades.': '.$pagename, ': '.$strgrades, $navigation, '', '', true, '', navmenu($COURSE));
-
-    $currenttab = 'lettersedit';
-    require('tabs.php');
+    print_grade_page_head($COURSE->id, 'letter', 'edit', get_string('editgradeletters', 'grades'));
 }
 
 $mform->display();

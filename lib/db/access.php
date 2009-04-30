@@ -424,7 +424,11 @@ $moodle_capabilities = array(
         )
     ),
 
-    'moodle/category:create' => array(
+    // Create, update and delete course categories. (Deleting a course category
+    // does not let you delete the courses it contains, unless you also have
+    // moodle/course: delete.) Creating and deleting requires this permission in
+    // the parent category.
+    'moodle/category:manage' => array(
 
         'riskbitmask' => RISK_XSS,
 
@@ -432,38 +436,19 @@ $moodle_capabilities = array(
         'contextlevel' => CONTEXT_COURSECAT,
         'legacy' => array(
             'admin' => CAP_ALLOW
-        )
+        ),
+        'clonepermissionsfrom' => 'moodle/category:update'
     ),
 
-    'moodle/category:delete' => array(
+    'moodle/category:viewhiddencategories' => array(
 
-        'riskbitmask' => RISK_DATALOSS,
-
-        'captype' => 'write',
+        'captype' => 'read',
         'contextlevel' => CONTEXT_COURSECAT,
         'legacy' => array(
+            'coursecreator' => CAP_ALLOW,
             'admin' => CAP_ALLOW
-        )
-    ),
-
-    'moodle/category:update' => array(
-
-        'riskbitmask' => RISK_XSS,
-
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_COURSECAT,
-        'legacy' => array(
-            'admin' => CAP_ALLOW
-        )
-    ),
-
-    'moodle/category:visibility' => array(
-
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_COURSECAT,
-        'legacy' => array(
-            'admin' => CAP_ALLOW
-        )
+        ),
+        'clonepermissionsfrom' => 'moodle/category:visibility'
     ),
 
     'moodle/course:create' => array(
@@ -475,6 +460,14 @@ $moodle_capabilities = array(
         'legacy' => array(
             'coursecreator' => CAP_ALLOW,
             'admin' => CAP_ALLOW
+        )
+    ),
+
+    'moodle/course:request' => array(
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'legacy' => array(
+            'user' => CAP_ALLOW,
         )
     ),
 
@@ -556,6 +549,7 @@ $moodle_capabilities = array(
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
         'legacy' => array(
+            'editingteacher' => CAP_ALLOW,
             'admin' => CAP_ALLOW
         )
     ),
@@ -859,14 +853,13 @@ $moodle_capabilities = array(
         )
     ),
 
+    // designed for parent role - not used in legacy roles
     'moodle/user:viewuseractivitiesreport' => array(
+        'riskbitmask' => RISK_PERSONAL,
 
         'captype' => 'read',
         'contextlevel' => CONTEXT_USER,
         'legacy' => array(
-            'teacher' => CAP_ALLOW,
-            'editingteacher' => CAP_ALLOW,
-            'admin' => CAP_ALLOW
         )
     ),
 
@@ -1029,7 +1022,7 @@ $moodle_capabilities = array(
     ),
 
     'moodle/site:mnetlogintoremote' => array(
-        'riskbitmask' => RISK_PERSONAL | RISK_XSS,
+
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
         'legacy' => array(

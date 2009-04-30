@@ -18,7 +18,7 @@ BuildArch:      noarch
 Source: %{name}-%{version}.tar.gz
 
 BuildRequires:  unzip
-Requires:       php-gd vixie-cron mimetex perl(lib) php-pgsql php-xmlrpc
+Requires:       php-gd vixie-cron mimetex perl(lib) php-pgsql php-xmlrpc php-mbstring
 Requires:       perl(Encode) perl(Text::Aspell) perl(HTML::Parser) php
 Requires:       perl(HTML::Entities) perl(CGI)
 Requires:       mimetex

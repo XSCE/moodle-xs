@@ -70,8 +70,14 @@ function forum_add_instance($forum) {
         }
     }
 
-    if ($forum->forcesubscribe == FORUM_INITIALSUBSCRIBE) { // all users should be subscribed initially
-        $users = get_course_users($forum->course);
+    if ($forum->forcesubscribe == FORUM_INITIALSUBSCRIBE) {
+    /// all users should be subscribed initially
+    /// Note: forum_get_potential_subscribers should take the forum context,
+    /// but that does not exist yet, becuase the forum is only half build at this
+    /// stage. However, because the forum is brand new, we know that there are
+    /// no role assignments or overrides in the forum context, so using the
+    /// course context gives the same list of users.
+        $users = forum_get_potential_subscribers(get_context_instance(CONTEXT_COURSE, $forum->course), 0, 'u.id, u.email', '');
         foreach ($users as $user) {
             forum_subscribe($user->id, $forum->id);
         }
@@ -119,7 +125,23 @@ function forum_update_instance($forum) {
                 notify('Warning! There is more than one discussion in this forum - using the most recent');
                 $discussion = array_pop($discussions);
             } else {
-                error('Could not find the discussion in this forum');
+                // try to recover by creating initial discussion - MDL-16262
+                $discussion = new object();
+                $discussion->course   = $forum->course;
+                $discussion->forum    = $forum->id;
+                $discussion->name     = $forum->name;
+                $discussion->intro    = $forum->intro;
+                $discussion->assessed = $forum->assessed;
+                $discussion->format   = $forum->type;
+                $discussion->mailnow  = false;
+                $discussion->groupid  = -1;
+
+                forum_add_discussion($discussion, $discussion->intro);
+
+                if (! $discussion = get_record('forum_discussions', 'forum', $forum->id)) {
+                    error('Could not add the discussion for this forum');
+                }
+
             }
         }
         if (! $post = get_record('forum_posts', 'id', $discussion->firstpost)) {
@@ -282,7 +304,8 @@ function forum_cron() {
 
             // caching subscribed users of each forum
             if (!isset($subscribedusers[$forumid])) {
-                if ($subusers = forum_subscribed_users($courses[$courseid], $forums[$forumid], 0, false)) {
+                $modcontext = get_context_instance(CONTEXT_MODULE, $coursemodules[$forumid]->id);
+                if ($subusers = forum_subscribed_users($courses[$courseid], $forums[$forumid], 0, $modcontext)) {
                     foreach ($subusers as $postuser) {
                         // do not try to mail users with stopped email
                         if ($postuser->emailstop) {
@@ -718,9 +741,9 @@ function forum_cron() {
                         }
                     }
                     if ($canunsubscribe) {
-                        $posthtml .= "\n<div align=\"right\"><font size=\"1\"><a href=\"$CFG->wwwroot/mod/forum/subscribe.php?id=$forum->id\">".get_string("unsubscribe", "forum")."</a></font></div>";
+                        $posthtml .= "\n<div class='mdl-right'><font size=\"1\"><a href=\"$CFG->wwwroot/mod/forum/subscribe.php?id=$forum->id\">".get_string("unsubscribe", "forum")."</a></font></div>";
                     } else {
-                        $posthtml .= "\n<div align=\"right\"><font size=\"1\">".get_string("everyoneissubscribed", "forum")."</font></div>";
+                        $posthtml .= "\n<div class='mdl-right'><font size=\"1\">".get_string("everyoneissubscribed", "forum")."</font></div>";
                     }
                     $posthtml .= '<hr size="1" noshade="noshade" /></p>';
                 }
@@ -900,7 +923,7 @@ function forum_make_mail_html($course, $forum, $discussion, $post, $userfrom, $u
     $posthtml .= forum_make_mail_post($course, $forum, $discussion, $post, $userfrom, $userto, false, $canreply, true, false);
 
     if ($canunsubscribe) {
-        $posthtml .= '<hr /><div align="center" class="unsubscribelink">
+        $posthtml .= '<hr /><div class="mdl-align unsubscribelink">
                       <a href="'.$CFG->wwwroot.'/mod/forum/subscribe.php?id='.$forum->id.'">'.get_string('unsubscribe', 'forum').'</a>&nbsp;
                       <a href="'.$CFG->wwwroot.'/mod/forum/unsubscribeall.php">'.get_string('unsubscribeall', 'forum').'</a></div>';
     }
@@ -1709,7 +1732,11 @@ function forum_search_posts($searchterms, $courseid=0, $limitfrom=0, $limitnum=5
             $select[] = "(d.userid = {$USER->id} OR (d.timestart < $now AND (d.timeend = 0 OR d.timeend > $now)))";
         }
 
-        if ($forum->type == 'qanda') {
+        $cm = get_coursemodule_from_instance('forum', $forumid);
+        $context = get_context_instance(CONTEXT_MODULE, $cm->id);
+
+        if ($forum->type == 'qanda'
+            && !has_capability('mod/forum:viewqandawithoutposting', $context)) {
             if (!empty($forum->onlydiscussions)) {
                 $discussionsids = implode(',', $forum->onlydiscussions);
                 $select[] = "(d.id IN ($discussionsids) OR p.parent = 0)";
@@ -2236,9 +2263,13 @@ function forum_get_discussions($cm, $forumsort="d.timemodified DESC", $fullpost=
 
     $now = round(time(), -2);
 
-    if (!empty($CFG->forum_enabletimedposts)) {
+    $modcontext = get_context_instance(CONTEXT_MODULE, $cm->id);
 
-        $modcontext = get_context_instance(CONTEXT_MODULE, $cm->id);
+    if (!has_capability('mod/forum:viewdiscussion', $modcontext)) { /// User must have perms to view discussions
+        return array();
+    }
+
+    if (!empty($CFG->forum_enabletimedposts)) { /// Users must fulfill timed posts
 
         if (!has_capability('mod/forum:viewhiddentimedposts', $modcontext)) {
             $timelimit = " AND ((d.timestart <= $now AND (d.timeend = 0 OR d.timeend > $now))";
@@ -2460,10 +2491,28 @@ function forum_get_user_discussions($courseid, $userid, $groupid=0) {
 }
 
 /**
- * Returns list of user objects that are subscribed to this forum
+ * Get the list of potential subscribers to a forum. 
+ *
+ * @param object $forumcontext the forum context.
+ * @param integer $groupid the id of a group, or 0 for all groups.
+ * @param string $fields the list of fields to return for each user. As for get_users_by_capability.
+ * @param string $sort sort order. As for get_users_by_capability.
+ * @return array list of users.
  */
-function forum_subscribed_users($course, $forum, $groupid=0) {
+function forum_get_potential_subscribers($forumcontext, $groupid, $fields, $sort) {
+    return get_users_by_capability($forumcontext, 'mod/forum:initialsubscriptions', $fields, $sort, '', '', $groupid, '', false, true);
+}
 
+/**
+ * Returns list of user objects that are subscribed to this forum
+ *
+ * @param object $course the course
+ * @param forum $forum the forum
+ * @param integer $groupid group id, or 0 for all.
+ * @param object $context the forum context, to save re-fetching it where possible.
+ * @return array list of users.
+ */
+function forum_subscribed_users($course, $forum, $groupid=0, $context = NULL) {
     global $CFG;
 
     if ($groupid) {
@@ -2476,11 +2525,14 @@ function forum_subscribed_users($course, $forum, $groupid=0) {
     }
 
     if (forum_is_forcesubscribed($forum)) {
-        $context = get_context_instance(CONTEXT_COURSE, $course->id);
+        if (empty($context)) {
+            $cm = get_coursemodule_from_instance('forum', $forum->id, $course->id);
+            $context = get_context_instance(CONTEXT_MODULE, $cm->id);
+        }
         $sort = "u.email ASC";
         $fields ="u.id, u.username, u.firstname, u.lastname, u.maildisplay, u.mailformat, u.maildigest, u.emailstop, u.imagealt,
                   u.email, u.city, u.country, u.lastaccess, u.lastlogin, u.picture, u.timezone, u.theme, u.lang, u.trackforums, u.mnethostid";
-        $results = get_users_by_capability($context, 'mod/forum:initialsubscriptions', $fields, $sort, '','','','', false, true);
+        $results = forum_get_potential_subscribers($context, $groupid, $fields, $sort);
     } else {
         $results = get_records_sql("SELECT u.id, u.username, u.firstname, u.lastname, u.maildisplay, u.mailformat, u.maildigest, u.emailstop, u.imagealt,
                                    u.email, u.city, u.country, u.lastaccess, u.lastlogin, u.picture, u.timezone, u.theme, u.lang, u.trackforums, u.mnethostid
@@ -2873,16 +2925,18 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
         // Print shortened version
         echo format_text(forum_shorten_post($post->message), $post->format, $options, $course->id);
         $numwords = count_words(strip_tags($post->message));
-        echo '<p><a href="'.$CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'">';
+        echo '<div class="posting"><a href="'.$CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'">';
         echo get_string('readtherest', 'forum');
-        echo '</a> ('.get_string('numwords', '', $numwords).')...</p>';
+        echo '</a> ('.get_string('numwords', '', $numwords).')...</div>';
     } else {
         // Print whole message
+        echo '<div class="posting">';
         if ($highlight) {
             echo highlight($highlight, format_text($post->message, $post->format, $options, $course->id));
         } else {
             echo format_text($post->message, $post->format, $options, $course->id);
         }
+        echo '</div>';
         echo $attachedimages;
     }
 
@@ -2994,7 +3048,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
             }
 
             if ($canviewallratings and !$mypost) {
-                forum_print_ratings($post->id, $ratings->scale, $forum->assessed, $canviewallratings, $allratings);
+                echo '<span class="forumpostratingtext">' .
+                     forum_print_ratings($post->id, $ratings->scale, $forum->assessed, $canviewallratings, $allratings, true) .
+                     '</span>';
                 if (!empty($ratings->allow)) {
                     echo '&nbsp;';
                     forum_print_rating_menu($post->id, $USER->id, $ratings->scale, $myrating);
@@ -3002,7 +3058,9 @@ function forum_print_post($post, $discussion, $forum, &$cm, $course, $ownpost=fa
                 }
 
             } else if ($mypost) {
-                forum_print_ratings($post->id, $ratings->scale, $forum->assessed, true, $allratings);
+                echo '<span class="forumpostratingtext">' .
+                     forum_print_ratings($post->id, $ratings->scale, $forum->assessed, true, $allratings, true) .
+                     '</span>';
 
             } else if (!empty($ratings->allow) ) {
                 forum_print_rating_menu($post->id, $USER->id, $ratings->scale, $myrating);
@@ -3226,7 +3284,7 @@ function forum_shorten_post($message) {
  * Forumid prevents the double lookup of the forumid in discussion to determine the aggregate type
  * Scale is an array of ratings
  */
-function forum_print_ratings($postid, $scale, $aggregatetype, $link=true, $ratings=null) {
+function forum_print_ratings($postid, $scale, $aggregatetype, $link=true, $ratings=null, $return=false) {
 
     $strratings = '';
 
@@ -3259,11 +3317,18 @@ function forum_print_ratings($postid, $scale, $aggregatetype, $link=true, $ratin
             $strratings = get_string("ratings", "forum");
         }
 
-        echo "$strratings: ";
+        $strratings .= ': ';
+
         if ($link) {
-            link_to_popup_window ("/mod/forum/report.php?id=$postid", "ratings", $agg, 400, 600);
+            $strratings .= link_to_popup_window ("/mod/forum/report.php?id=$postid", "ratings", $agg, 400, 600, null, null, true);
         } else {
-            echo "$agg ";
+            $strratings .= "$agg ";
+        }
+
+        if ($return) {
+            return $strratings;
+        } else {
+            echo $strratings;
         }
     }
 }
@@ -3312,8 +3377,17 @@ function forum_get_ratings_mean($postid, $scale, $ratings=NULL) {
 
 /**
  * Return the count of the ratings of a post given to the current user by others.
- * Scale is an array of possible ratings in the scale - the end of the scale is the highest or max grade
- * Ratings is an optional simple array of actual ratings (just integers)
+ *
+ * For numerical grades, the scale index is the same as the real grade value from interval {0..n}
+ * and $scale looks like Array( 0 => '0/n', 1 => '1/n', ..., n => 'n/n' )
+ *
+ * For scales, the index is the order of the scale item {1..n}
+ * and $scale looks like Array( 1 => 'poor', 2 => 'weak', 3 => 'good' )
+ * In case of no ratings done yet, we have nothing to display.
+ *
+ * @param int $postid
+ * @param array $scale Possible ratings in the scale - the end of the scale is the highest or max grade
+ * @param array $ratings An optional simple array of actual ratings (just integers)
  */
 function forum_get_ratings_count($postid, $scale, $ratings=NULL) {
 
@@ -3327,12 +3401,29 @@ function forum_get_ratings_count($postid, $scale, $ratings=NULL) {
     }
 
     $count = count($ratings);
-    $scalecount = count($scale)-1; //this should give us the last element of the scale aka the max grade with  $scale[$scalecount]
-
-    if ($count > $scale[$scalecount]) { //if the count exceeds the forum scale (i.e. max grade then set the score to the max grade
-        $count = $scale[$scalecount];
+    $maxgradeidx = max(array_keys($scale)); // For numerical grades, the index is the same as the real grade value {0..n}
+                                            // and $scale looks like Array( 0 => '0/n', 1 => '1/n', ..., n => 'n/n' )
+                                            // For scales, the index is the order of the scale item {1..n}
+                                            // and $scale looks like Array( 1 => 'poor', 2 => 'weak', 3 => 'good' )
+    if (! array_key_exists(0, $scale)) {
+        $scaleused = true;
+    } else {
+        $scaleused = false;
     }
-    return $scale[$count];
+
+    if (($count == 0) && ($scaleused)) {    // If no rating given yet and we use a scale
+        return get_string('noratinggiven', 'forum');
+    } elseif ($count > $maxgradeidx) {      // The count exceeds the max grade
+        $a = new stdClass();
+        $a->count = $count;
+        $a->grade = $scale[$maxgradeidx];
+        return get_string('aggregatecountformat', 'forum', $a);
+    } else {                                // Display the count and the aggregated grade for this post
+        $a = new stdClass();
+        $a->count = $count;
+        $a->grade = $scale[$count];
+        return get_string('aggregatecountformat', 'forum', $a);
+    }
 }
 
 /**
@@ -3511,7 +3602,7 @@ function forum_print_rating_menu($postid, $userid, $scale, $myrating=NULL) {
         $strrate = get_string("rate", "forum");
     }
     $scale = array(FORUM_UNSET_POST_RATING => $strrate.'...') + $scale;
-    choose_from_menu($scale, $postid, $myrating, '');
+    choose_from_menu($scale, $postid, $myrating, '', '', '0', false, false, 0, '', false, false, 'forumpostratingmenu');
 }
 
 /**
@@ -4076,7 +4167,7 @@ function forum_post_subscription($post, $forum) {
         return "";
 
     } elseif (($forum->forcesubscribe == FORUM_DISALLOWSUBSCRIBE)
-        && !has_capability('moodle/course:manageactivities', $coursecontext, $USER->id)) {
+        && !has_capability('moodle/course:manageactivities', get_context_instance(CONTEXT_COURSE, $forum->course), $USER->id)) {
         if ($subscribed) {
             $action = 'unsubscribe'; // sanity check, following MDL-14558
         } else {
@@ -4315,11 +4406,6 @@ function forum_user_can_post_discussion($forum, $currentgroup=null, $unused=-1, 
         $context = get_context_instance(CONTEXT_MODULE, $cm->id);
     }
 
-    // normal users with temporary guest access can not add discussions
-    if (has_capability('moodle/legacy:guest', $context, $USER->id, false)) {
-        return false;
-    }
-
     if ($currentgroup === null) {
         $currentgroup = groups_get_activity_group($cm);
     }
@@ -4506,20 +4592,20 @@ function forum_user_can_see_post($forum, $discussion, $post, $user=NULL, $cm=NUL
 
     // retrieve objects (yuk)
     if (is_numeric($forum)) {
-        debugging('missinf full forum', DEBUG_DEVELOPER);
+        debugging('missing full forum', DEBUG_DEVELOPER);
         if (!$forum = get_record('forum','id',$forum)) {
             return false;
         }
     }
 
     if (is_numeric($discussion)) {
-        debugging('missinf full discussion', DEBUG_DEVELOPER);
+        debugging('missing full discussion', DEBUG_DEVELOPER);
         if (!$discussion = get_record('forum_discussions','id',$discussion)) {
             return false;
         }
     }
     if (is_numeric($post)) {
-        debugging('missinf full post', DEBUG_DEVELOPER);
+        debugging('missing full post', DEBUG_DEVELOPER);
         if (!$post = get_record('forum_posts','id',$post)) {
             return false;
         }
@@ -4894,7 +4980,9 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     $ratingsmenuused = false;
     $ratingsformused = false;
     if ($forum->assessed and isloggedin()) {
-        if ($ratings->scale = make_grades_menu($forum->scale)) {
+        if ($scale = make_grades_menu($forum->scale)) {
+            $ratings =new object();
+            $ratings->scale = $scale;
             $ratings->assesstimestart = $forum->assesstimestart;
             $ratings->assesstimefinish = $forum->assesstimefinish;
             $ratings->allow = $canrate;
@@ -4924,8 +5012,6 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
         }
 
     }
-
-
 
     $post->forum = $forum->id;   // Add the forum id to the post object, later used by forum_print_post
     $post->forumtype = $forum->type;
@@ -4964,7 +5050,14 @@ function forum_print_discussion($course, $cm, $forum, $discussion, $post, $mode,
     if ($ratingsformused) {
         if ($ratingsmenuused) {
             echo '<div class="ratingsubmit">';
-            echo '<input type="submit" value="'.get_string('sendinratings', 'forum').'" />';
+            echo '<input type="submit" id="forumpostratingsubmit" value="'.get_string('sendinratings', 'forum').'" />';
+            if (ajaxenabled() && !empty($CFG->forum_ajaxrating)) { /// AJAX enabled, standard submission form
+                $rate_ajax_config_settings = array("pixpath"=>$CFG->pixpath, "wwwroot"=>$CFG->wwwroot, "sesskey"=>sesskey());
+                echo "<script type=\"text/javascript\">//<![CDATA[\n".
+                     "var rate_ajax_config = " . json_encode($rate_ajax_config_settings) . ";\n".
+                     "init_rate_ajax();\n".
+                     "//]]></script>\n";
+            }
             if ($forum->scale < 0) {
                 if ($scale = get_record("scale", "id", abs($forum->scale))) {
                     print_scale_menu_helpbutton($course->id, $scale );
@@ -5043,6 +5136,7 @@ function forum_print_posts_threaded($course, &$cm, $forum, $discussion, $parent,
                 }
             } else {
                 if (!forum_user_can_see_post($forum, $discussion, $post, NULL, $cm)) {
+                    echo "</div>\n";
                     continue;
                 }
                 $by = new object();
@@ -5354,21 +5448,21 @@ function forum_add_user_default_subscriptions($userid, $context) {
     switch ($context->contextlevel) {
 
         case CONTEXT_SYSTEM:   // For the whole site
-             if ($courses = get_records('course')) {
-                 foreach ($courses as $course) {
-                     $subcontext = get_context_instance(CONTEXT_COURSE, $course->id);
-                     forum_add_user_default_subscriptions($userid, $subcontext);
-                 }
+             $rs = get_recordset('course', '', '', '', 'id');
+             while ($course = rs_fetch_next_record($rs)) {
+                 $subcontext = get_context_instance(CONTEXT_COURSE, $course->id);
+                 forum_add_user_default_subscriptions($userid, $subcontext);
              }
+             rs_close($rs);
              break;
 
         case CONTEXT_COURSECAT:   // For a whole category
-             if ($courses = get_records('course', 'category', $context->instanceid)) {
-                 foreach ($courses as $course) {
-                     $subcontext = get_context_instance(CONTEXT_COURSE, $course->id);
-                     forum_add_user_default_subscriptions($userid, $subcontext);
-                 }
-             }
+            $rs = get_recordset('course', 'category', $context->instanceid, '', 'id');
+            while ($course = rs_fetch_next_record($rs)) {
+                $subcontext = get_context_instance(CONTEXT_COURSE, $course->id);
+                forum_add_user_default_subscriptions($userid, $subcontext);
+            }
+            rs_close($rs);
              if ($categories = get_records('course_categories', 'parent', $context->instanceid)) {
                  foreach ($categories as $category) {
                      $subcontext = get_context_instance(CONTEXT_COURSECAT, $category->id);
@@ -5973,7 +6067,11 @@ function forum_tp_count_forum_unread_posts($cm, $course) {
     if (empty($CFG->enablegroupings)) {
         $mygroups = $modinfo->groups[0];
     } else {
-        $mygroups = $modinfo->groups[$cm->groupingid];
+        if (array_key_exists($cm->groupingid, $modinfo->groups)) {
+            $mygroups = $modinfo->groups[$cm->groupingid];
+        } else {
+            $mygroups = false; // Will be set below
+        }
     }
 
     // add all groups posts
@@ -6416,11 +6514,12 @@ function forum_reset_userdata($data) {
         // remove ratings
         delete_records_select('forum_ratings', "post IN ($postssql)");
 
-        // all posts
-        delete_records_select('forum_posts', "discussion IN ($discussionssql)");
+        // all posts - initial posts must be kept in single simple discussion forums
+        delete_records_select('forum_posts', "discussion IN ($discussionssql) AND parent <> 0"); // first all children
+        delete_records_select('forum_posts', "discussion IN ($discussionssql AND f.type <> 'single') AND parent = 0"); // now the initial posts for non single simple
 
-        // finally all discussions
-        delete_records_select('forum_discussions', "forum IN ($forumssql)");
+        // finally all discussions except single simple forums
+        delete_records_select('forum_discussions', "forum IN ($forumssql AND f.type <> 'single')");
 
         // now get rid of all attachments
         if ($forums = get_records_sql($forumssql)) {

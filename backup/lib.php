@@ -439,7 +439,7 @@
                     print_continue($continueto);
                     print_footer('none');
                     exit;
-                } else if (CLI_UPGRADE) {
+                } else if (CLI_UPGRADE  && ($interative > CLI_SEMI)) {
                     console_write(STDOUT,'askcontinue');
                     if (read_boolean()){
                         return ;
@@ -461,6 +461,25 @@
         upgrade_log_finish();
     }
 
+    /**
+     * Are we restoring a backup that was made on the same site that we are restoring to?
+     * This relies on some information that was only added to backup files in January 2009.
+     * For older backup files, fall back to guessing based on wwwroot. MDL-16614 explains
+     * when this guess could give the wrong answer.
+     * @return boolean true if the backup was made on the same site we are restoring to.
+     */
+    function backup_is_same_site(&$restore) {
+        global $CFG;
+        static $hashedsiteid = null;
+        if (is_null($hashedsiteid)) {
+            $hashedsiteid = md5(get_site_identifier());
+        }
+        if (!empty($restore->original_siteidentifier)) {
+            return $restore->original_siteidentifier == $hashedsiteid;
+        } else {
+            return $restore->original_wwwroot == $CFG->wwwroot;
+        }
+    }
 
     //This function is used to insert records in the backup_ids table
     //If the info field is greater than max_db_storage, then its info
@@ -656,12 +675,10 @@
     function import_backup_file_silently($pathtofile,$destinationcourse,$emptyfirst=false,$userdata=false, $preferences=array()) {
         global $CFG,$SESSION,$USER; // is there such a thing on cron? I guess so..
         global $restore; // ick
-        if (empty($USER)) {
-            $USER = get_admin();
-            $USER->admin = 1; // not sure why, but this doesn't get set
-        }
 
-        define('RESTORE_SILENTLY',true); // don't output all the stuff to us.
+        if (!defined('RESTORE_SILENTLY')) {
+            define('RESTORE_SILENTLY',true); // don't output all the stuff to us.
+        }
 
         $debuginfo = 'import_backup_file_silently: ';
         $cleanupafter = false;
@@ -710,9 +727,12 @@
             mtrace($debuginfo.'Required function check failed (see backup_required_functions)');
             return false;
         }
-
         @ini_set("max_execution_time","3000");
-        raise_memory_limit("192M");
+        if (empty($CFG->extramemorylimit)) {
+            raise_memory_limit('128M');
+        } else {
+            raise_memory_limit($CFG->extramemorylimit);
+        }
 
         if (!$backup_unique_code = restore_precheck($destinationcourse,$pathtofile,$errorstr,true)) {
             mtrace($debuginfo.'Failed restore_precheck (error was '.$errorstr.')');
@@ -725,14 +745,17 @@
         $SESSION->restore->metacourse   = $restore->metacourse = (isset($preferences['restore_metacourse']) ? $preferences['restore_metacourse'] : 0);
         $SESSION->restore->restoreto    = $restore->restoreto = 1;
         $SESSION->restore->users        = $restore->users = $userdata;
+        $SESSION->restore->groups       = $restore->groups = (isset($preferences['restore_groups']) ? $preferences['restore_groups'] : RESTORE_GROUPS_NONE);
         $SESSION->restore->logs         = $restore->logs = (isset($preferences['restore_logs']) ? $preferences['restore_logs'] : 0);
         $SESSION->restore->user_files   = $restore->user_files = $userdata;
         $SESSION->restore->messages     = $restore->messages = (isset($preferences['restore_messages']) ? $preferences['restore_messages'] : 0);
+        $SESSION->restore->blogs        = $restore->blogs = (isset($preferences['restore_blogs']) ? $preferences['restore_blogs'] : 0);
         $SESSION->restore->course_id    = $restore->course_id = $destinationcourse;
         $SESSION->restore->restoreto    = 1;
         $SESSION->restore->course_id    = $destinationcourse;
         $SESSION->restore->deleting     = $emptyfirst;
         $SESSION->restore->restore_course_files = $restore->course_files = (isset($preferences['restore_course_files']) ? $preferences['restore_course_files'] : 0);
+        $SESSION->restore->restore_site_files = $restore->site_files = (isset($preferences['restore_site_files']) ? $preferences['restore_site_files'] : 0);
         $SESSION->restore->backup_version = $SESSION->info->backup_backup_version;
         $SESSION->restore->course_startdateoffset = $course->startdate - $SESSION->course_header->course_startdate;
 
@@ -775,7 +798,9 @@
     */
     function backup_course_silently($courseid, $prefs, &$errorstring) {
         global $CFG, $preferences; // global preferences here because something else wants it :(
-        define('BACKUP_SILENTLY', 1);
+        if (!defined('BACKUP_SILENTLY')) {
+            define('BACKUP_SILENTLY', 1);
+        }
         if (!$course = get_record('course', 'id', $courseid)) {
             debugging("Couldn't find course with id $courseid in backup_course_silently");
             return false;

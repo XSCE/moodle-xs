@@ -5,11 +5,23 @@
 if (has_capability('moodle/grade:manage', $systemcontext)
  or has_capability('moodle/grade:manageletters', $systemcontext)) { // speedup for non-admins, add all caps used on this page
 
+    require_once $CFG->libdir.'/grade/constants.php';
+    $display_types = array(GRADE_DISPLAY_TYPE_REAL => get_string('real', 'grades'),
+                           GRADE_DISPLAY_TYPE_PERCENTAGE => get_string('percentage', 'grades'),
+                           GRADE_DISPLAY_TYPE_LETTER => get_string('letter', 'grades'),
+                           GRADE_DISPLAY_TYPE_REAL_PERCENTAGE => get_string('realpercentage', 'grades'),
+                           GRADE_DISPLAY_TYPE_REAL_LETTER => get_string('realletter', 'grades'),
+                           GRADE_DISPLAY_TYPE_LETTER_REAL => get_string('letterreal', 'grades'),
+                           GRADE_DISPLAY_TYPE_LETTER_PERCENTAGE => get_string('letterpercentage', 'grades'),
+                           GRADE_DISPLAY_TYPE_PERCENTAGE_LETTER => get_string('percentageletter', 'grades'),
+                           GRADE_DISPLAY_TYPE_PERCENTAGE_REAL => get_string('percentagereal', 'grades')
+                           );
+    asort($display_types);
+
     // General settings
 
     $temp = new admin_settingpage('gradessettings', get_string('generalsettings', 'grades'), 'moodle/grade:manage');
     if ($ADMIN->fulltree) {
-        require_once $CFG->libdir.'/grade/constants.php';
 
         // new CFG variable for gradebook (what roles to display)
         $temp->add(new admin_setting_special_gradebookroles());
@@ -32,10 +44,7 @@ if (has_capability('moodle/grade:manage', $systemcontext)
         $temp->add(new admin_setting_configcheckbox('gradepublishing', get_string('gradepublishing', 'grades'), get_string('configgradepublishing', 'grades'), 0));
 
         $temp->add(new admin_setting_configselect('grade_export_displaytype', get_string('gradeexportdisplaytype', 'grades'),
-                                                  get_string('configgradeexportdisplaytype', 'grades'), GRADE_DISPLAY_TYPE_REAL,
-                                                  array(GRADE_DISPLAY_TYPE_REAL => get_string('real', 'grades'),
-                                                        GRADE_DISPLAY_TYPE_PERCENTAGE => get_string('percentage', 'grades'),
-                                                        GRADE_DISPLAY_TYPE_LETTER => get_string('letter', 'grades'))));
+                                                  get_string('configgradeexportdisplaytype', 'grades'), GRADE_DISPLAY_TYPE_REAL, $display_types));
 
         $temp->add(new admin_setting_configselect('grade_export_decimalpoints', get_string('gradeexportdecimalpoints', 'grades'),
                                                   get_string('configexportdecimalpoints', 'grades'), 2,
@@ -45,8 +54,14 @@ if (has_capability('moodle/grade:manage', $systemcontext)
                                                          '3' => '3',
                                                          '4' => '4',
                                                          '5' => '5')));
+        $temp->add(new admin_setting_configselect('grade_navmethod', get_string('navmethod', 'grades'), null, 0,
+                                                  array(GRADE_NAVMETHOD_DROPDOWN => get_string('dropdown', 'grades'),
+                                                        GRADE_NAVMETHOD_TABS => get_string('tabs', 'grades'),
+                                                        GRADE_NAVMETHOD_COMBO => get_string('combo', 'grades'))));
 
         $temp->add(new admin_setting_special_gradeexport());
+
+        $temp->add(new admin_setting_special_gradelimiting());
     }
     $ADMIN->add('grades', $temp);
 
@@ -67,8 +82,16 @@ if (has_capability('moodle/grade:manage', $systemcontext)
                          GRADE_AGGREGATE_MAX             =>get_string('aggregatemax', 'grades'),
                          GRADE_AGGREGATE_MODE            =>get_string('aggregatemode', 'grades'),
                          GRADE_AGGREGATE_SUM             =>get_string('aggregatesum', 'grades'));
+
+        $defaultvisible = array(GRADE_AGGREGATE_MEAN, GRADE_AGGREGATE_WEIGHTED_MEAN, GRADE_AGGREGATE_WEIGHTED_MEAN2,
+                                GRADE_AGGREGATE_EXTRACREDIT_MEAN, GRADE_AGGREGATE_MEDIAN, GRADE_AGGREGATE_MIN,
+                                GRADE_AGGREGATE_MAX, GRADE_AGGREGATE_MODE, GRADE_AGGREGATE_SUM);
+
         $defaults = array('value'=>GRADE_AGGREGATE_WEIGHTED_MEAN2, 'forced'=>false, 'adv'=>false);
         $temp->add(new admin_setting_gradecat_combo('grade_aggregation', get_string('aggregation', 'grades'), get_string('aggregationhelp', 'grades'), $defaults, $options));
+
+        $temp->add(new admin_setting_configmultiselect('grade_aggregations_visible', get_string('aggregationsvisible', 'grades'),
+                                                       get_string('aggregationsvisiblehelp', 'grades'), $defaultvisible, $options));
 
         $options = array(0 => get_string('no'), 1 => get_string('yes'));
 
@@ -101,10 +124,7 @@ if (has_capability('moodle/grade:manage', $systemcontext)
     $temp = new admin_settingpage('gradeitemsettings', get_string('gradeitemsettings', 'grades'), 'moodle/grade:manage');
     if ($ADMIN->fulltree) {
         $temp->add(new admin_setting_configselect('grade_displaytype', get_string('gradedisplaytype', 'grades'),
-                                                  get_string('configgradedisplaytype', 'grades'), GRADE_DISPLAY_TYPE_REAL,
-                                                  array(GRADE_DISPLAY_TYPE_REAL => get_string('real', 'grades'),
-                                                        GRADE_DISPLAY_TYPE_PERCENTAGE => get_string('percentage', 'grades'),
-                                                        GRADE_DISPLAY_TYPE_LETTER => get_string('letter', 'grades'))));
+                                                  get_string('configgradedisplaytype', 'grades'), GRADE_DISPLAY_TYPE_REAL, $display_types));
 
         $temp->add(new admin_setting_configselect('grade_decimalpoints', get_string('decimalpoints', 'grades'),
                                                   get_string('configdecimalpoints', 'grades'), 2,
@@ -142,8 +162,10 @@ if (has_capability('moodle/grade:manage', $systemcontext)
 
     $scales = new admin_externalpage('scales', get_string('scales'), $CFG->wwwroot.'/grade/edit/scale/index.php', 'moodle/grade:manage');
     $ADMIN->add('grades', $scales);
-    $outcomes = new admin_externalpage('outcomes', get_string('outcomes', 'grades'), $CFG->wwwroot.'/grade/edit/outcome/index.php', 'moodle/grade:manage');
-    $ADMIN->add('grades', $outcomes);
+    if (!empty($CFG->enableoutcomes)) {
+        $outcomes = new admin_externalpage('outcomes', get_string('outcomes', 'grades'), $CFG->wwwroot.'/grade/edit/outcome/index.php', 'moodle/grade:manage');
+        $ADMIN->add('grades', $outcomes);
+    }
     $letters = new admin_externalpage('letters', get_string('letters', 'grades'), $CFG->wwwroot.'/grade/edit/letter/edit.php', 'moodle/grade:manageletters');
     $ADMIN->add('grades', $letters);
 

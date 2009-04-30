@@ -17,7 +17,6 @@
  *
  *
  * @author  Jamie Pratt
- * @version $Id$
  * @license http://www.gnu.org/copyleft/gpl.html GNU Public License
  */
 
@@ -452,7 +451,7 @@ class moodleform {
 
         if (empty($this->_upload_manager->files[$elname]['clear'])) {
             return false;
-        }        
+        }
 
         if (empty($this->_upload_manager->files[$elname]['tmp_name'])) {
             return false;
@@ -553,15 +552,17 @@ class moodleform {
         $mform->addElement('hidden', $repeathiddenname, $repeats);
         //value not to be overridden by submitted value
         $mform->setConstants(array($repeathiddenname=>$repeats));
-        for ($i=0; $i<$repeats; $i++) {
+        $namecloned = array();
+        for ($i = 0; $i < $repeats; $i++) {
             foreach ($elementobjs as $elementobj){
-                $elementclone = clone($elementobj);
+                $elementclone = fullclone($elementobj);
                 $name = $elementclone->getName();
-                if (!empty($name)){
+                $namecloned[] = $name;
+                if (!empty($name)) {
                     $elementclone->setName($name."[$i]");
                 }
-                if (is_a($elementclone, 'HTML_QuickForm_header')){
-                    $value=$elementclone->_text;
+                if (is_a($elementclone, 'HTML_QuickForm_header')) {
+                    $value = $elementclone->_text;
                     $elementclone->setValue(str_replace('{no}', ($i+1), $value));
 
                 } else {
@@ -592,6 +593,12 @@ class moodleform {
                             $mform->setHelpButton($realelementname, $params);
                             break;
                         case 'disabledif' :
+                            foreach ($namecloned as $num => $name){
+                                if ($params[0] == $name){
+                                    $params[0] = $params[0]."[$i]";
+                                    break;
+                                }
+                            }
                             $params = array_merge(array($realelementname), $params);
                             call_user_func_array(array(&$mform, 'disabledIf'), $params);
                             break;
@@ -623,7 +630,7 @@ class moodleform {
      * @param array  $attributes associative array of HTML attributes
      * @param int    $originalValue The original general state of the checkboxes before the user first clicks this element
      */
-    function add_checkbox_controller($groupid, $buttontext, $attributes, $originalValue = 0) { 
+    function add_checkbox_controller($groupid, $buttontext, $attributes, $originalValue = 0) {
         global $CFG;
         if (empty($text)) {
             $text = get_string('selectallornone', 'form');
@@ -640,7 +647,7 @@ class moodleform {
 
         $mform->addElement('hidden', "checkbox_controller$groupid");
         $mform->setConstants(array("checkbox_controller$groupid" => $new_select_value));
-        
+
         // Locate all checkboxes for this group and set their value, IF the optional param was given
         if (!is_null($select_value)) {
             foreach ($this->_form->_elements as $element) {
@@ -652,7 +659,7 @@ class moodleform {
 
         $checkbox_controller_name = 'nosubmit_checkbox_controller' . $groupid;
         $mform->registerNoSubmitButton($checkbox_controller_name);
-        
+
         // Prepare Javascript for submit element
         $js = "\n//<![CDATA[\n";
         if (!defined('HTML_QUICKFORM_CHECKBOXCONTROLLER_EXISTS')) {
@@ -662,29 +669,29 @@ function html_quickform_toggle_checkboxes(group) {
     var newvalue = false;
     var global = eval('html_quickform_checkboxgroup' + group + ';');
     if (global == 1) {
-        eval('html_quickform_checkboxgroup' + group + ' = 0;'); 
+        eval('html_quickform_checkboxgroup' + group + ' = 0;');
         newvalue = '';
     } else {
-        eval('html_quickform_checkboxgroup' + group + ' = 1;'); 
+        eval('html_quickform_checkboxgroup' + group + ' = 1;');
         newvalue = 'checked';
     }
 
     for (i = 0; i < checkboxes.length; i++) {
-        checkboxes[i].checked = newvalue; 
+        checkboxes[i].checked = newvalue;
     }
 }
 EOS;
             define('HTML_QUICKFORM_CHECKBOXCONTROLLER_EXISTS', true);
         }
         $js .= "\nvar html_quickform_checkboxgroup$groupid=$originalValue;\n";
-        
+
         $js .= "//]]>\n";
-        
+
         require_once("$CFG->libdir/form/submitlink.php");
         $submitlink = new MoodleQuickForm_submitlink($checkbox_controller_name, $attributes);
         $submitlink->_js = $js;
         $submitlink->_onclick = "html_quickform_toggle_checkboxes($groupid); return false;";
-        $mform->addElement($submitlink); 
+        $mform->addElement($submitlink);
         $mform->setDefault($checkbox_controller_name, $text);
     }
 
@@ -795,7 +802,8 @@ class MoodleQuickForm extends HTML_QuickForm_DHTMLRulesTableless {
             $this->_pageparams = '';
         }
         //no 'name' atttribute for form in xhtml strict :
-        $attributes = array('action'=>$action, 'method'=>$method, 'id'=>'mform'.$formcounter) + $target;
+        $attributes = array('action'=>$action, 'method'=>$method,
+                'accept-charset'=>'utf-8', 'id'=>'mform'.$formcounter) + $target;
         $formcounter++;
         $this->updateAttributes($attributes);
 
@@ -1058,6 +1066,19 @@ class MoodleQuickForm extends HTML_QuickForm_DHTMLRulesTableless {
         }elseif (!$suppresscheck){
             print_error('nonexistentformelements', 'form', '', $elementname);
         }
+    }
+
+    /**
+     * Set constant value not overriden by _POST or _GET
+     * note: this does not work for complex names with [] :-(
+     * @param string $elname name of element
+     * @param mixed $value
+     * @return void
+     */
+    function setConstant($elname, $value) {
+        $this->_constantValues = HTML_QuickForm::arrayMerge($this->_constantValues, array($elname=>$value));
+        $element =& $this->getElement($elname);
+        $element->onQuickFormEvent('updateValue', null, $this);
     }
 
     function exportValues($elementList= null, $addslashes=true){
@@ -1473,8 +1494,8 @@ function validate_' . $this->_formName . '(frm) {
     /**
      * Displays elements without HTML input tags.
      * This method is different to freeze() in that it makes sure no hidden
-     * elements are included in the form. And a 'hardFrozen' element's submitted value is
-     * ignored.
+     * elements are included in the form.
+     * Note: If you want to make sure the submitted value is ignored, please use setDefaults().
      *
      * This function also removes all previously defined rules.
      *
@@ -1875,4 +1896,5 @@ MoodleQuickForm::registerElementType('submit', "$CFG->libdir/form/submit.php", '
 MoodleQuickForm::registerElementType('questioncategory', "$CFG->libdir/form/questioncategory.php", 'MoodleQuickForm_questioncategory');
 MoodleQuickForm::registerElementType('advcheckbox', "$CFG->libdir/form/advcheckbox.php", 'MoodleQuickForm_advcheckbox');
 MoodleQuickForm::registerElementType('recaptcha', "$CFG->libdir/form/recaptcha.php", 'MoodleQuickForm_recaptcha');
+MoodleQuickForm::registerElementType('selectwithlink', "$CFG->libdir/form/selectwithlink.php", 'MoodleQuickForm_selectwithlink');
 ?>

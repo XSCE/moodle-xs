@@ -165,7 +165,7 @@ class question_multichoice_qtype extends default_questiontype {
         $answerids = array_values(array_map(create_function('$val',
          'return $val->id;'), $question->options->answers));
         // Shuffle the answers if required
-        if ($cmoptions->shuffleanswers and $question->options->shuffleanswers) {
+        if (!empty($cmoptions->shuffleanswers) and !empty($question->options->shuffleanswers)) {
            $answerids = swapshuffle($answerids);
         }
         $state->options->order = $answerids;
@@ -423,6 +423,7 @@ class question_multichoice_qtype extends default_questiontype {
                 fwrite ($bf,full_tag("CORRECTFEEDBACK",$level+1,false,$multichoice->correctfeedback));
                 fwrite ($bf,full_tag("PARTIALLYCORRECTFEEDBACK",$level+1,false,$multichoice->partiallycorrectfeedback));
                 fwrite ($bf,full_tag("INCORRECTFEEDBACK",$level+1,false,$multichoice->incorrectfeedback));
+                fwrite ($bf,full_tag("ANSWERNUMBERING",$level+1,false,$multichoice->answernumbering));
                 $status = fwrite ($bf,end_tag("MULTICHOICE",$level,true));
             }
 
@@ -471,6 +472,11 @@ class question_multichoice_qtype extends default_questiontype {
                 $multichoice->incorrectfeedback = backup_todb($mul_info['#']['INCORRECTFEEDBACK']['0']['#']);
             } else {
                 $multichoice->incorrectfeedback = '';
+            }
+            if (array_key_exists("ANSWERNUMBERING", $mul_info['#'])) {
+                $multichoice->answernumbering = backup_todb($mul_info['#']['ANSWERNUMBERING']['0']['#']);
+            } else {
+                $multichoice->answernumbering = 'abc';
             }
 
             //We have to recode the answers field (a list of answers id)

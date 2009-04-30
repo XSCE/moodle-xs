@@ -50,15 +50,17 @@ class edit_outcomeitem_form extends moodleform {
                 $options[$outcome->id] = $outcome->get_name();
             }
         }
-        $mform->addElement('select', 'outcomeid', get_string('outcome', 'grades'), $options);
+        $mform->addElement('selectwithlink', 'outcomeid', get_string('outcome', 'grades'), $options, null,
+            array('link' => $CFG->wwwroot.'/grade/edit/outcome/course.php?id='.$COURSE->id, 'label' => get_string('outcomeassigntocourse', 'grades')));
         $mform->setHelpButton('outcomeid', array('outcomeid', get_string('outcomeid', 'grades'), 'grade'), true);
         $mform->addRule('outcomeid', get_string('required'), 'required');
 
         $options = array(0=>get_string('none'));
         if ($coursemods = get_course_mods($COURSE->id)) {
             foreach ($coursemods as $coursemod) {
-                $mod = get_coursemodule_from_id($coursemod->modname, $coursemod->id);
-                $options[$coursemod->id] = format_string($mod->name);
+                if ($mod = get_coursemodule_from_id($coursemod->modname, $coursemod->id)) {
+                    $options[$coursemod->id] = format_string($mod->name);
+                }
             }
         }
         $mform->addElement('select', 'cmid', get_string('linkedactivity', 'grades'), $options);
@@ -99,6 +101,9 @@ class edit_outcomeitem_form extends moodleform {
             if ($cat->is_aggregationcoef_used()) {
                 if ($cat->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN) {
                     $coefstring = ($coefstring=='' or $coefstring=='aggregationcoefweight') ? 'aggregationcoefweight' : 'aggregationcoef';
+
+                } else if ($cat->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN2) {
+                    $coefstring = ($coefstring=='' or $coefstring=='aggregationcoefextrasum') ? 'aggregationcoefextrasum' : 'aggregationcoef';
 
                 } else if ($cat->aggregation == GRADE_AGGREGATE_EXTRACREDIT_MEAN) {
                     $coefstring = ($coefstring=='' or $coefstring=='aggregationcoefextra') ? 'aggregationcoefextra' : 'aggregationcoef';
@@ -198,6 +203,9 @@ class edit_outcomeitem_form extends moodleform {
                     $aggcoef = '';
                     if ($parent_category->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN) {
                         $aggcoef = 'aggregationcoefweight';
+
+                    } else if ($parent_category->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN2) {
+                        $aggcoef = 'aggregationcoefextrasum';
 
                     } else if ($parent_category->aggregation == GRADE_AGGREGATE_EXTRACREDIT_MEAN) {
                         $aggcoef = 'aggregationcoefextra';

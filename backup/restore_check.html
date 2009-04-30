@@ -22,8 +22,8 @@
         $course_header->course_fullname =   stripslashes_safe($form1->fullname);   //"update_FullName";
     /// Roll dates only if the backup course has a start date
     /// (some formats like main page, social..., haven't it and rolling dates
-    /// from 0 produces crazy dates. MDL-10125
-        if ($course_header->course_startdate) {
+    /// from 0 produces crazy dates. MDL-10125 and we have passed some custom startyear/month/day. MDL-12922
+        if ($course_header->course_startdate && !empty($form1->startyear)) {
             $form1->startdate = make_timestamp($form1->startyear, $form1->startmonth, $form1->startday);
             $currentcoursestartdate = $course_header->course_startdate;
             $coursestartdatedateoffset = $form1->startdate - $currentcoursestartdate;
@@ -214,27 +214,17 @@
     //    2-New course: Create the restore object and launch the execute.
 
     //If the user is a teacher and not a creator or we are restoring from within SITEID
-
-    if (!user_can_create_courses() || $id == SITEID) {
+    $cancreatecourses = user_can_create_courses();
+    if (!$cancreatecourses || $id == SITEID) {
         $restore->course_id = $id;
-        if ($restore->restoreto == 0) {
-            $restore->deleting = true;
-        } else {
-            $restore->deleting = false;
-        }
     }
 
-    //If the user is a creator (or admin)
-    if (user_can_create_courses()) {
-        //Set restore->deleting as needed
-        if ($restore->restoreto == 0) {
-            $restore->deleting = true;
-        } else {
-            $restore->deleting = false;
-        }
+    //Set restore->deleting as needed
+    if ($restore->restoreto == 0) {
+        $restore->deleting = true;
+    } else {
+        $restore->deleting = false;
     }
-
-
 
     // Non-cached - get accessinfo
     if (isset($USER->access)) {
@@ -270,12 +260,14 @@
     //Checks everything and execute restore
     } else if ((($restore->restoreto == 0 or $restore->restoreto == 1) and ($restore->course_id != 0)) or ($restore->restoreto == 2)) {
         //Final access control check
-        if ($restore->course_id == 0 and !user_can_create_courses()) {
+        if ($restore->course_id == 0 and !$cancreatecourses) {
             error("You need to be a creator or admin to restore into new course!");
         } else if ($restore->course_id != 0 and !has_capability('moodle/site:restore', get_context_instance(CONTEXT_COURSE, $restore->course_id))) {
             error("You need to be an edit teacher or admin to restore into selected course!");
         }
         $show_continue_button = true;
+        $messages = array();
+
         //Check if we've selected any mod's user info and restore->users
         //is set to none. Change it to course and inform.
         if ($restore->users == 2) {
@@ -291,36 +283,52 @@
                 $changed = 1;
             }
             if ($changed) {
-                echo get_string ("noteuserschangednonetocourse");
-                echo "<hr noshade size=\"1\">";
+                $messages[] = get_string ("noteuserschangednonetocourse");
                 $restore->users = 1;
             }
         }
+
+    /// If restoring users and backup has mnet remote users and we are restoring to different site, forbid restore to non-admins. MDL-17009
+        if ($restore->users != 2 &&                                                   /// If restoring users
+            !empty($info->mnet_remoteusers) && $info->mnet_remoteusers === 'true'  && /// and backup contains remote users
+            !backup_is_same_site($info)) {                              /// and backup is being restored to different site
+
+        /// If user is admin (by 'moodle/user:create' cap), warn about conversion to local auth if missing mnet hosts and continue restore
+            if (has_capability('moodle/user:create', get_context_instance(CONTEXT_SYSTEM))) {
+                $messages[] = get_string('mnetrestore_extusers_admin', 'admin');
+                $show_continue_button = true;
+
+        /// else, notify about the thing (suggesting to ask admin) and stop restore
+            } else {
+                $messages[] = get_string('mnetrestore_extusers_noadmin', 'admin');
+                $show_continue_button = false;
+            }
+        }
+
         //Save the restore session object
         $SESSION->restore = $restore;
+
+        echo "<div style='text-align:center'>";
+
+    /// Printout messages
+        foreach ($messages as $message) {
+            echo '<p>' . $message . '</p>';
+        }
+
+    /// Warning and button
         if ($show_continue_button) {
             //Print the continue button to execute the restore NOW !!!!
             //All is prepared !!!
-            echo "<div style='text-align:center'>";
             $hidden["launch"]             = "execute";
             $hidden["file"]               =  $file;
             $hidden["id"]                 =  $id;
             print_string('longtimewarning','admin');
 
-            if ($restore->users && !empty($info->mnet_externalusers)
-                && $info->mnet_externalusers === 'true') {
-                if ($info->original_wwwroot === $CFG->wwwroot) {
-                    print '<p>'.get_string('mnetrestore_extusers','admin').'</p>';
-                } else {
-                    print '<p>'. get_string('mnetrestore_extusers_mismatch','admin').'</p>';
-                }
-            }
+
+        /// Restore button
             print_single_button("restore.php", $hidden, get_string("restorecoursenow"),"post");
-            echo "</div>";
-        } else {
-            //Show error
-            error ("Something was wrong checking restore preferences");
         }
+        echo "</div>";
 
     //If we are here. Something must be wrong. Debug !!!
     } else {

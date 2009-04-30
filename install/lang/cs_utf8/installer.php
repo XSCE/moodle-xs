@@ -134,7 +134,7 @@ $string['environmenthead'] = 'Kontrola programového prostředí...';
 $string['environmentrecommendcustomcheck'] = 'Pokud tento test selhal, znamená to možné problémy';
 $string['environmentrecommendinstall'] = 'doporučená komponenta';
 $string['environmentrecommendversion'] = 'doporučena je verze $a->needed, nyní používáte verzi $a->current';
-$string['environmentrequirecustomcheck'] = 'Tebto test musí projít';
+$string['environmentrequirecustomcheck'] = 'Tento test musí projít';
 $string['environmentrequireinstall'] = 'vyžadovaná komponenta';
 $string['environmentrequireversion'] = 'vyžadována je verze $a->needed, nyní používáte verzi $a->current';
 $string['environmentsub'] = 'Nyní se prověřuje, zda vybrané komponenty vašeho systému splňují požadavky instalace.';
@@ -206,8 +206,8 @@ na hodnotu blízkou 40M. Nemáte-li taková práva, požádejte správce vašeho
 $string['missingrequiredfield'] = 'Chybí některé z povinných polí';
 $string['moodledocslink'] = 'Dokumentace k této stránce';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server s podporou UTF-8 (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHP nebylo korektně nakonfigurováno pro komunikaci s SQL*Server přes rozšíření MSSQL. Zkontrolujte váš php.ini nebo překompilujte PHP.';
+$string['mssql_n'] = 'SQL*Server s podporou UTF-8 (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'Pokud ovšem ve vaší instalaci Moodlu používáte POUZE jazyky založené na latince (iso-8859-1), můžete nadále používat momentálně nainstalovanou verzi MySQL 4.1.12 (nebo vyšší).';
 $string['mysql416required'] = 'Minimální verzí požadovanou pro Moodle 1.6 -- a pro pozdější bezpečný převod všech dat do UTF-8 -- je MySQL 4.1.16.';
@@ -218,8 +218,8 @@ $string['name'] = 'Název';
 $string['next'] = 'Další';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHP nebylo korektně nakonfigurováno pro komunikaci s Oracle přes rozšíření OCI8. Zkontrolujte váš php.ini nebo překompilujte PHP.';
-$string['odbc_mssql'] = 'SQL*Server přes ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHP nebylo korektně nakonfigurováno pro komunikaci s SQL*Server přes rozšíření ODBC. Zkontrolujte váš php.ini nebo překompilujte PHP.';
+$string['odbc_mssql'] = 'SQL*Server přes ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Pro běh síťových funkcionalit (\"Moodle Networking\") je potřeba nainstalovat volitelnou knihovnu OpenSSL.';
 $string['parentlanguage'] = '<< Pokud chcete definovat sekundární jazyk, který má Moodle používat v případech, kdy řetězce ve vašem jazykovém balíčku chybí, specifikujte jeho kód zde. Příklad: sk_utf8>>';
@@ -234,6 +234,9 @@ $string['phpversionhelp'] = '<p>Moodle vyžaduje PHP alespoň verze 4.3.0 nebo 5
 <p>Musíte PHP upgradovat, nebo přejít k hostiteli s vyšší verzí!<br />
 (U PHP 5.0.x můžete také přejít na nižší verzi 4.4.x či 4.3.x.)</p>';
 $string['postgres7'] = 'PostgreSQL (postgres7)';
+$string['postgresqlwarning'] = '<strong>Poznámka:</strong> Pokud máte problém s konektivitou k databázi, zkuste nastavit pole \"Hostitelský server\" na hodnotu
+host=\'postgresql_hostitel\' port=\'5432\' dbname=\'nazev_postgresql_databaze\' user=\'uzivatel_postgresql\' password=\'heslo_uzivatele_postgresql\' a 
+ponechte pole Databáze, Uživatel a Heslo prázdné. Více informací najdete v <a href=\"http://docs.moodle.org/en/Installing_Postgres_for_PHP\">dokumentaci</a>';
 $string['previous'] = 'Předchozí';
 $string['qtyperqpwillberemoved'] = 'Během upgrade bude odstraněn typ testové úlohy RQP. Tento typ jste nepoužívali, takže byste neměli zaznamenta žádné problémy.';
 $string['qtyperqpwillberemovedanyway'] = 'Během upgrade bude odstraněn typ testové úlohy RQP. Ve vaší databázi existuje několik takových úloh a ty nebudou fungovat, dokud nepřeinstalujete kód z http://moodle.org/mod/data/view.php?d=13&amp;rid=797 před pokračováním upgrade.';

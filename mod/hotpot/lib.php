@@ -212,7 +212,8 @@ function hotpot_update_instance(&$hotpot) {
         $hotpot->id = $hotpot->instance;
         if ($result = update_record('hotpot', $hotpot)) {
             hotpot_update_events($hotpot);
-            hotpot_grade_item_update(stripslashes_recursive($hotpot));
+            //hotpot_grade_item_update(stripslashes_recursive($hotpot));
+            hotpot_update_grades(stripslashes_recursive($hotpot));
         }
     } else {
         $result=  false;
@@ -1314,6 +1315,15 @@ function hotpot_grade_item_update($hotpot, $grades=null) {
 
     } else {
         $params['gradetype'] = GRADE_TYPE_NONE;
+        // Note: when adding a new activity, a gradeitem will *not*
+        // be created in the grade book if gradetype==GRADE_TYPE_NONE
+        // A gradeitem will be created later if gradetype changes to GRADE_TYPE_VALUE
+        // However, the gradeitem will *not* be deleted if the activity's
+        // gradetype changes back from GRADE_TYPE_VALUE to GRADE_TYPE_NONE
+        // Therefore, we give the user the ability to force the removal of empty gradeitems
+        if (! empty($hotpot->removegradeitem)) {
+            $params['deleted'] = true;
+        }
     }
     return grade_update('mod/hotpot', $hotpot->course, 'mod', 'hotpot', $hotpot->id, 0, $grades, $params);
 }
@@ -1873,14 +1883,14 @@ class hotpot_xml_quiz extends hotpot_xml_tree {
             //include_once "$CFG->dirroot/filter/mediaplugin/filter.php";
             include_once "$CFG->dirroot/mod/hotpot/mediaplayers/moodle/filter.php";
 
-            // exclude swf files from the filter
-            //$CFG->filter_mediaplugin_ignore_swf = true;
-
             $space = '\s(?:.+\s)?';
             $quote = '["'."']?"; // single, double, or no quote
 
             // patterns to media files types and paths
-            $filetype = "avi|mpeg|mpg|mp3|mov|wmv";
+            $filetype = "avi|mpeg|mpg|mp3|mov|wmv|flv";
+            if ($CFG->filter_mediaplugin_enable_swf) {
+                $filetype .= '|swf';
+            }
             $filepath = ".*?\.($filetype)";
 
             $tagopen = '(?:(<)|(\\\\u003C))'; // left angle-bracket (uses two parenthese)
@@ -1895,10 +1905,10 @@ class hotpot_xml_quiz extends hotpot_xml_tree {
             $param_url = "/{$tagopen}param{$space}name=$quote(?:movie|src|url)$quote{$space}value=$quote($filepath)$quote.*?$tagclose/is";
 
             // pattern to match <a> tags which link to multimedia files
-            $link_url = "/{$tagopen}a{$space}href=$quote($filepath)$quote.*?$tagclose.*?$tagreopen\/A$tagclose/is";
+            $link_url = "/{$tagopen}a{$space}href=$quote($filepath)$quote.*?$tagclose.*?$tagreopen\/a$tagclose/is";
 
             // extract <object> tags
-            preg_match_all("/{$tagopen}object\s.*?{$tagclose}(.*?)(?:{$tagreopen}\/object{$tagclose})+/is", $this->html, $objects);
+            preg_match_all("/{$tagopen}object.*?{$tagclose}(.*?)(?:{$tagreopen}\/object{$tagclose})+/is", $this->html, $objects);
 
             $i_max = count($objects[0]);
             for ($i=0; $i<$i_max; $i++) {
@@ -2608,6 +2618,59 @@ END_OF_SCRIPT;
  */
 function hotpot_get_extra_capabilities() {
     return array('moodle/site:accessallgroups');
+}
+
+/**
+ * This function is used by the reset_course_userdata function in moodlelib.
+ * This function will remove all attempts from hotpot quizzes in the specified course.
+ * @param $data the data submitted from the reset course.
+ * @return array status array
+ */
+function hotpot_reset_userdata($data) {
+    global $CFG;
+    require_once($CFG->libdir.'/filelib.php');
+
+    $status = array();
+
+    if (!empty($data->reset_hotpot_deleteallattempts)) {
+
+        $hotpotids = "SELECT h.id FROM {$CFG->prefix}hotpot h WHERE h.course={$data->courseid}";
+        $attemptids = "SELECT a.id FROM {$CFG->prefix}hotpot_attempts a WHERE a.hotpot in ($hotpotids)";
+
+        delete_records_select('hotpot_responses', "attempt in ($attemptids)");
+        delete_records_select('hotpot_details', "attempt in ($attemptids)");
+        delete_records_select('hotpot_attempts', "hotpot IN ($hotpotids)");
+
+        $status[] = array('component' => get_string('modulenameplural', 'hotpot'),
+                          'item' => get_string('deleteallattempts', 'hotpot'),
+                          'error' => false);
+    }
+
+    return $status;
+}
+
+/**
+ * Called by course/reset.php
+ * @param $mform form passed by reference
+ */
+function hotpot_reset_course_form_definition(&$mform) {
+    $mform->addElement('header', 'hotpotheader', get_string('modulenameplural', 'hotpot'));
+    $mform->addElement('checkbox', 'reset_hotpot_deleteallattempts', get_string('deleteallattempts', 'hotpot'));
+}
+
+/**
+ * Course reset form defaults.
+ */
+function hotpot_reset_course_form_defaults($course) {
+    return array('reset_hotpot_deleteallattempts' => 1);
+}
+
+/**
+ * Tells if files in moddata are trusted and can be served without XSS protection.
+ * @return bool true if file can be submitted by teacher only (trusted), false otherwise
+ */
+function hotpot_is_moddata_trusted() {
+    return true;
 }
 
 ?>

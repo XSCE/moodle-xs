@@ -61,6 +61,10 @@
         error("The PHP server variable 'file_uploads' is not turned On - $documentationlink");
     }
 
+    if (is_float_problem()) {
+        print_error('phpfloatproblem', 'admin', '', $documentationlink);
+    }
+
     if (empty($CFG->prefix) && $CFG->dbfamily != 'mysql') {  //Enforce prefixes for everybody but mysql
         error('$CFG->prefix can\'t be empty for your target DB (' . $CFG->dbtype . ')');
     }
@@ -286,17 +290,22 @@
 
                 require_once($CFG->libdir.'/environmentlib.php');
                 print_heading(get_string('environment', 'admin'));
+                remove_dir($CFG->dataroot . '/environment'); /// Always delete downloaded env. info to force use of the released one. MDL-9796
                 if (!check_moodle_environment($release, $environment_results, true)) {
-                    print_box_start('generalbox', 'notice'); // MDL-8330
-                    print_string('langpackwillbeupdated', 'admin');
-                    print_box_end();
+                    if (empty($CFG->skiplangupgrade)) {
+                        print_box_start('generalbox', 'notice'); // MDL-8330
+                        print_string('langpackwillbeupdated', 'admin');
+                        print_box_end();
+                    }
                     notice_yesno(get_string('environmenterrorupgrade', 'admin'),
-                                 'index.php?confirmupgrade=1&confirmrelease=1', 'index.php');
+                                 'index.php?confirmupgrade=1&amp;confirmrelease=1', 'index.php');
                 } else {
                     notify(get_string('environmentok', 'admin'), 'notifysuccess');
-                    print_box_start('generalbox', 'notice'); // MDL-8330
-                    print_string('langpackwillbeupdated', 'admin');
-                    print_box_end();
+                    if (empty($CFG->skiplangupgrade)) {
+                        print_box_start('generalbox', 'notice'); // MDL-8330
+                        print_string('langpackwillbeupdated', 'admin');
+                        print_box_end();
+                    }
                     echo '<form action="index.php"><div>';
                     echo '<input type="hidden" name="confirmupgrade" value="1" />';
                     echo '<input type="hidden" name="confirmrelease" value="1" />';
@@ -319,7 +328,7 @@
                 print_plugin_tables();
                 echo "<br />";
                 echo '<div class="continuebutton">';
-                print_single_button('index.php', array('confirmupgrade' => 1, 'confirmrelease' => 1), get_string('reload'), 'get');
+                echo '<a href="index.php?confirmupgrade=1&amp;confirmrelease=1" title="'.get_string('reload').'" ><img src="'.$CFG->pixpath.'/i/reload.gif" alt="" /> '.get_string('reload').'</a>';
                 echo '</div><br />';
                 echo '<form action="index.php"><div>';
                 echo '<input type="hidden" name="confirmupgrade" value="1" />';
@@ -344,7 +353,9 @@
                 upgrade_log_start();
 
             /// Upgrade current language pack if we can
-                upgrade_language_pack();
+                if (empty($CFG->skiplangupgrade)) {
+                    upgrade_language_pack();
+                }
 
                 print_heading($strdatabasechecking);
                 $db->debug=true;
@@ -467,6 +478,9 @@
 /// Check all message output plugins and upgrade if necessary
     upgrade_plugins('message','message/output',"$CFG->wwwroot/$CFG->admin/index.php");
 
+/// Check all course report plugins and upgrade if necessary
+    upgrade_plugins('coursereport', 'course/report', "$CFG->wwwroot/$CFG->admin/index.php");
+
 /// Check all admin report plugins and upgrade if necessary
     upgrade_plugins('report', $CFG->admin.'/report', "$CFG->wwwroot/$CFG->admin/index.php");
 
@@ -540,10 +554,8 @@
         set_config('adminblocks_initialised', 1);
     }
 
-/// Define the unique site ID code if it isn't already
-    if (empty($CFG->siteidentifier)) {    // Unique site identification code
-        set_config('siteidentifier', random_string(32).$_SERVER['HTTP_HOST']);
-    }
+/// Define the unique site ID code if it isn't already set. This getter does that as a side-effect.
+    get_site_identifier();
 
 /// Check if the guest user exists.  If not, create one.
     if (! record_exists("user", "username", "guest")) {

@@ -16,4 +16,7 @@ $string['removealias'] = 'Remove this aliasing.';
 $string['aliasmade']= 'The accounts have been aliased.';
 $string['aliasremoved']= 'The accounts have been separated.';
 $string['aliases_explanation'] = 'When an XO laptop has been replaced, use this tool to mark the replacement laptop and associate it to the original account. From the list on the left pane, select the replacement XO and then click on <em>Alias to selected account</em>.';
+$string['presence']='Presence service';
+$string['configpresencebycourse']='Instead of seeing all users, users will see only participants in the courses they are in. This is useful for locations with large numbers of users.';
+$string['presencebycourse']='Split by course';
 ?>

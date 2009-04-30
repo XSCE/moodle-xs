@@ -10,10 +10,16 @@ $day  = optional_param('cal_d', 0, PARAM_INT);
 $mon  = optional_param('cal_m', 0, PARAM_INT);
 $yr   = optional_param('cal_y', 0, PARAM_INT);
 if ($courseid = optional_param('course', 0, PARAM_INT)) {
-    $course = get_record('course', 'id', $courseid); 
+    $course = get_record('course', 'id', $courseid);
+} else {
+    $course = NULL;
 }
 
 require_login();
+
+if (empty($CFG->enablecalendarexport)) {
+    die('no export');
+}
 
 if(!$site = get_site()) {
     redirect($CFG->wwwroot.'/'.$CFG->admin.'/index.php');
@@ -26,7 +32,7 @@ $pagetitle = get_string('export', 'calendar');
 $navlinks = array();
 $now = usergetdate(time());
 
-if ($course->id != SITEID) {
+if (!empty($courseid) && $course->id != SITEID) {
     $navlinks[] = array('name' => $course->shortname,
                         'link' => "$CFG->wwwroot/course/view.php?id=$course->id",
                         'type' => 'misc');
@@ -80,7 +86,7 @@ echo '<td class="maincalendar">';
 
 $username = $USER->username;
 $usernameencoded = urlencode($USER->username);
-$authtoken = sha1($USER->username . $USER->password);
+$authtoken = sha1($USER->username . $USER->password . $CFG->calendar_exportsalt);
 
 switch($action) {
     case 'advanced':

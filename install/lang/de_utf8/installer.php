@@ -16,7 +16,7 @@ $string['admindirsettingsub'] = 'Einige wenige Webhosting-Anbieter benutzen /adm
 z.B.: <br /> <br /><b>moodleadmin</b><br /> 
 Dies ändert die Links für das Admin-Verzeichnis in Moodle.';
 $string['bypassed'] = 'Unberücksichtigt';
-$string['cannotcreatelangdir'] = 'Das Verzeichnis \"lang\" kann nicht angelegt werden.';
+$string['cannotcreatelangdir'] = 'Verzeichnis \"lang\" kann nicht angelegt werden';
 $string['cannotcreatetempdir'] = 'Das Verzeichnis \"temp\" kann nicht angelegt werden.';
 $string['cannotdownloadcomponents'] = 'Einige Komponenten können nicht heruntergeladen werden.';
 $string['cannotdownloadzipfile'] = 'ZIP-Datei kann nicht heruntergeladen werden.';
@@ -44,60 +44,60 @@ $string['curlrequired'] = 'Die PHP-Erweiterung cURL wird von Moodle benötigt, u
 $string['customcheck'] = 'Weitere Überprüfungen';
 $string['database'] = 'Datenbank';
 $string['databasecreationsettingshead'] = 'Sie müssen Einstellungen für die Datenbank konfigurieren, in der die meisten Moodle-Daten abgelegt werden. Der Installationsprozess erstellt die Datenbanktabellen automatisch auf der Grundlage der Einstellungen.';
-$string['databasecreationsettingssub'] = '<b>Typ:</b> \"mysql\" vom Installer festgelegt<br />
-<b>Host:</b> \"localhost\" vom Installer festgelegt<br />
+$string['databasecreationsettingssub'] = '<b>Typ:</b> vom Installer festgelegt auf  \"mysql\" <br />
+<b>Host:</b> vom Installer festgelegt auf  \"localhost\"<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> \"root\" vom Installer festgelegt<br />
-<b>Password:</b> Ihr Datenbankpasswort<br />
-<b>Tables Prefix:</b> optionaler Prefix für alle Tabellennamen';
+<b>Nutzer:</b> vom Installer festgelegt auf  \"root\"<br />
+<b>Passwort:</b> Ihr Datenbankpasswort<br />
+<b>Tabellen-Prefix:</b> optionaler Prefix für alle Tabellennamen';
 $string['databasesettingshead'] = 'Sie müssen nun die Einstellungen für die Datenbank konfigurieren, in der die meisten Moodle-Daten abgelegt werden. Diese Datenbank muss bereits vorher angelegt und mit Nutzernamen und Passwort versehen worden sein, um auf sie zugreifen zu können.';
 $string['databasesettingssub'] = '<b>Typ:</b> mysql oder postgres7<br />
 <b>Host:</b> z.B. localhost oder db.isp.com<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
-<b>Tabellen-Prefix:</b> optionaler Prefix für alle Tabellen';
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
+<b>Tabellen-Prefix:</b> optionaler Prefix für alle Tabellennamen';
 $string['databasesettingssub_mssql'] = '<b>Typ:</b> SQL*Server (ohne UTF-8)<b><strong class=\"errormsg\">Experimentell! (nicht für Produktivumgebungen)</strong></b><br /><br />
 <b>Host:</b> z.B. localhost oder db.isp.com<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
-<b>Tabellen-Prefix:</b> Prefix für alle Tabellen (notwendig)';
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
+<b>Tabellen-Prefix:</b> Prefix für alle Tabellennamen (notwendig)';
 $string['databasesettingssub_mssql_n'] = '<b>Typ:</b> SQL*Server (mit UTF-8)<br />
 <b>Host:</b> z.B. localhost oder db.isp.com<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
+<b>Nutzer:</b> Ihr Anmeldename für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (notwendig)';
 $string['databasesettingssub_mysql'] = '<b>Typ:</b> MySQL<br />
 <b>Host:</b> z.B. localhost oder db.isp.com<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (optional)';
 $string['databasesettingssub_mysqli'] = '<b>Typ:</b> Improved MySQL<br />
 <b>Host:</b> z.B. localhost oder db.domain.com<br />
 <b>Name:</b> Datenbank-Name, z.B moodle<br />
-<b>User:</b> Ihr Datenbank-Anmeldename<br />
-<b>Passwort:</b> Ihr Datenbank-Passwort<br />
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (optional)';
 $string['databasesettingssub_oci8po'] = '<b>Typ:</b> Oracle<br />
 <b>Host:</b> unbenutzt - muss leer bleiben!<br />
 <b>Name:</b> vorgegebener Verbindungname zu tnsnames.ora<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (notwendig, 2cc. max)';
 $string['databasesettingssub_odbc_mssql'] = '<b>Typ:</b> SQL*Server (over ODBC) <b><font color=\"red\">Experimentell! (nicht für den produktiven Einsatz)</font></b><br />
 <b>Host:</b> vorgegebener DSN-Name im ODBC-Kontrolldialog<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (notwendig)';
 $string['databasesettingssub_postgres7'] = '<b>Typ:</b> PostgreSQL<br />
 <b>Host:</b> z.B. localhost oder db.isp.com<br />
 <b>Name:</b> Datenbankname, z.B. moodle<br />
-<b>User:</b> Ihr Anmeldename für die Datenbank<br />
-<b>Password:</b> Ihr Passwort für die Datenbank<br />
+<b>Nutzer:</b> Ihr Benutzername für die Datenbank<br />
+<b>Passwort:</b> Ihr Passwort für die Datenbank<br />
 <b>Tabellen-Prefix:</b> Prefix für alle Tabellen (notwendig)';
 $string['databasesettingswillbecreated'] = '<b>Hinweis: </b> Das Installationsprogramm wird versuchen, automatisch eine Datenbank anzulegen, sofern diese noch nicht besteht.';
 $string['dataroot'] = 'Daten-Verzeichnis';
@@ -191,8 +191,8 @@ $string['memorylimithelp'] = '<p>Die PHP-Einstellung memory_limit für Ihren Ser
 $string['missingrequiredfield'] = 'Einige erforderliche Felder sind nicht ausgefüllt.';
 $string['moodledocslink'] = 'Moodle-Dokumentation für diese Seite';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server mit UTF-8-Unterstützung (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHP wurde nicht richtig konfiguriert, um über die MSSQL-Erweiterung mit SQL*Server zu kommunizieren. Bitte prüfen Sie die Datei php.ini oder kompilieren Sie PHP neu.';
+$string['mssql_n'] = 'SQL*Server mit UTF-8-Unterstützung (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'Wenn Sie in Ihrer Website ausschließlich ISO-8859-1 (lateinische) Sprachen verwenden, können Sie eine MySQL-Version ab 4.1.12 (oder höher) verwenden.';
 $string['mysql416required'] = 'MySQL 4.1.16 (oder höher) ist für Moodle 1.6 unbedingt erforderlich, um eine Datenkonvertierung nach UTF-8 sicherzustellen.';
@@ -203,8 +203,8 @@ $string['name'] = 'Name';
 $string['next'] = 'Nächste';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHP wurde nicht richtig konfiguriert, um über die OCI8-Erweiterung mit Oracle zu kommunizieren. Bitte prüfen Sie die Datei php.ini oder kompilieren Sie PHP neu.';
-$string['odbc_mssql'] = 'SQL*Server über ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHP wurde nicht richtig konfiguriert, um über die ODBC-Erweiterung mit SQL*Server zu kommunizieren. Bitte prüfen Sie die Datei php.ini oder kompilieren Sie PHP neu.';
+$string['odbc_mssql'] = 'SQL*Server über ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Die optionale Installation der OpenSSL Bibliothek wird dringend empfohlen. Dadurch wird die Moodle-Netzwerk-Funktionalität ermöglicht.';
 $string['parentlanguage'] = 'en_utf8';
@@ -257,6 +257,6 @@ $string['wrongsourcebase'] = 'Falsche URL-Quelle';
 $string['wrongzipfilename'] = 'Falscher ZIP-Dateiname';
 $string['wwwroot'] = 'Web-Adresse';
 $string['wwwrooterror'] = 'Diese Web-Adresse scheint nicht gültig zu sein. Moodle ist nicht unter dieser Adresse installiert.';
-$string['xmlrpcrecommended'] = 'Die Installation der optionalen xmlrpc Erweiterung ist für die Moodle-Network Funktionen nützlich.';
+$string['xmlrpcrecommended'] = 'Die Installation der optionalen PHP-Erweiterung xmlrpc ist für die Moodle-Network Funktionen nötig.';
 $string['ziprequired'] = 'Die PHP-Erweiterung zip wird ab sofort von Moodle gefordert. Die Pakete info-ZIP oder PclZip werden nicht weiter eingesetzt.';
 ?>

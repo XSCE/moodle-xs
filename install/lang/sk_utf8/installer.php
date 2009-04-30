@@ -202,8 +202,8 @@ Na niektorých PHP serveroch, si môžete vytvoriť súbor .htaccess v Adresári
 $string['missingrequiredfield'] = 'Chýba niektoré z povinných polí';
 $string['moodledocslink'] = 'Moodle Docs pre túto stránku';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server s UTF-8 podporou (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHP nebolo správne nakonfigurované s MSSQL rozšírením, a tak nemôže komunikovať s SQL*Server. Prosím, skontrolujte si Váš php.ini súbor alebo znovu vytvorte PHP.';
+$string['mssql_n'] = 'SQL*Server s UTF-8 podporou (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'Ak ale vo vašej inštalácii Moodle používate IBA jazyky založené na latinke (iso-8859-1), môžete aj ďalej používať súčasne nainštalovanú verziu MySQL 4.1.12 (alebo vyšší).';
 $string['mysql416required'] = 'Minimálnou verziou potrebnou pre Moodle 1.6 -- a pre neskorší bezpečný prevod všetkých údajov do UTF-8 -- je MySQL 4.1.16.';
@@ -214,8 +214,8 @@ $string['name'] = 'Meno';
 $string['next'] = 'Ďalší';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHP nebolo správne nakonfigurované s OCI8 rozšírením, a tak nemôže komunikovať s Oracle. Prosím, skontrolujte si Váš php.ini súbor alebo znovu vytvorte PHP.';
-$string['odbc_mssql'] = 'SQL*Server cez ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHP nebolo správne nakonfigurované s ODBC rozšírením, a tak nemôže komunikovať s SQL*Serverom. Prosím, skontrolujte si Váš php.ini súbor alebo znovu vytvorte PHP.';
+$string['odbc_mssql'] = 'SQL*Server cez ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Pre beh sieťových funkcionalít (\"Moodle Networking\") je treba nainštalovať voliteľnú knižnicu OpenSSL.';
 $string['parentlanguage'] = '<< PREKLADATELIA: Ak chcete definovať sekundárny jazyk, ktorý má Moodle používať v prípadoch, keď reťazce vo vašom jazykovom balíčku chýbajú, zadajte ho sem. Príklad: cs_utf8>>';
@@ -229,6 +229,9 @@ $string['phpversionhelp'] = '<p>Moodle si vyžaduje verziu PHP aspoň  4.1.0.</p
 <p>Vy máte momentálne nainštalovanú túto verziu $a</p>
 <p>Musíte obnoviť PHP alebo presunúť na hostiteľský počítač s novou verziou PHP!</p>';
 $string['postgres7'] = 'PostgreSQL (postgres7)';
+$string['postgresqlwarning'] = '<strong>Poznámka:</strong> Ak pozorujete občasné problémy s pripojením, môžete skúsiť nastaviť pole hostiteľského servera nasledovne
+host=\'postgresql_host\' port=\'5432\' dbname=\'postgresql_database_name\' user=\'postgresql_user\' password=\'postgresql_user_password\'
+a ponechajte prázdne polia databáza, používateľ a heslo. Viac informácií na <a href=\"http://docs.moodle.org/en/Installing_Postgres_for_PHP\">Moodle Docs</a>';
 $string['previous'] = 'Predchádzajúci';
 $string['qtyperqpwillberemoved'] = 'Počas aktualizácie budú odobrané otázky typu RQP. Nemali ste žiadne také, takže by ste nemali zbadať žiadne problémy.';
 $string['qtyperqpwillberemovedanyway'] = 'Počas aktualizácie budú odobrané otázky typu RQP. Vo vašej databáze sa otázky takéhoto typu nachádzajú a nebudú fungovať ak nepreinštalujete program z http://moodle.org/mod/data/view.php?d=13&amp;rid=797 predtým, ako budete pokračovať v aktualizácii.';

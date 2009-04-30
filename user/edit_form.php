@@ -61,6 +61,11 @@ class user_edit_form extends moodleform {
             }
         }
 
+        // remove description
+        if (empty($user->description) && !empty($CFG->profilesforenrolledusersonly) && !record_exists('role_assignments', 'userid', $userid)) {
+            $mform->removeElement('description');
+        }
+
         if ($user = get_record('user', 'id', $userid)) {
 
             // print picture
@@ -75,7 +80,6 @@ class user_edit_form extends moodleform {
 
             /// disable fields that are locked by auth plugins
             $fields = get_user_fieldnames();
-            $freezefields = array();
             $authplugin = get_auth_plugin($user->auth);
             foreach ($fields as $field) {
                 if (!$mform->elementExists($field)) {
@@ -84,18 +88,21 @@ class user_edit_form extends moodleform {
                 $configvariable = 'field_lock_' . $field;
                 if (isset($authplugin->config->{$configvariable})) {
                     if ($authplugin->config->{$configvariable} === 'locked') {
-                        $freezefields[] = $field;
+                        $mform->hardFreeze($field);
+                        $mform->setConstant($field, $user->$field);
                     } else if ($authplugin->config->{$configvariable} === 'unlockedifempty' and $user->$field != '') {
-                        $freezefields[] = $field;
+                        $mform->hardFreeze($field);
+                        $mform->setConstant($field, $user->$field);
                     }
                 }
             }
-            $mform->hardFreeze($freezefields);
+
+            /// Next the customisable profile fields
+            profile_definition_after_data($mform, $user->id);
+
+        } else {
+            profile_definition_after_data($mform, 0);
         }
-
-        /// Next the customisable profile fields
-        profile_definition_after_data($mform);
-
     }
 
     function validation($usernew, $files) {
@@ -107,17 +114,19 @@ class user_edit_form extends moodleform {
         $user    = get_record('user', 'id', $usernew->id);
 
         // validate email
-        if (!validate_email($usernew->email)) {
+        if (!isset($usernew->email)) {
+            // mail not confirmed yet
+        } else if (!validate_email($usernew->email)) {
             $errors['email'] = get_string('invalidemail');
-        } else if (($usernew->email !== $user->email) and record_exists('user', 'email', $usernew->email, 'mnethostid', $CFG->mnet_localhost_id)) {
+        } else if ((stripslashes($usernew->email) !== $user->email) and record_exists('user', 'email', $usernew->email, 'mnethostid', $CFG->mnet_localhost_id)) {
             $errors['email'] = get_string('emailexists');
         }
 
-        if ($usernew->email === $user->email and over_bounce_threshold($user)) {
+        if (isset($usernew->email) and $usernew->email === $user->email and over_bounce_threshold($user)) {
             $errors['email'] = get_string('toomanybounces');
         }
 
-        if (!empty($CFG->verifychangedemail) and !isset($errors['email']) and !has_capability('moodle/user:update', get_context_instance(CONTEXT_SYSTEM))) {
+        if (isset($usernew->email) and !empty($CFG->verifychangedemail) and !isset($errors['email']) and !has_capability('moodle/user:update', get_context_instance(CONTEXT_SYSTEM))) {
             $errorstr = email_is_not_allowed($usernew->email);
             if ($errorstr !== false) {
                 $errors['email'] = $errorstr;

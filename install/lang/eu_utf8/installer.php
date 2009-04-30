@@ -11,26 +11,26 @@
 
 $string['admindirerror'] = 'Kudeaketarako zehaztu den direktorioa ez da zuzena';
 $string['admindirname'] = 'Admin direktorioa';
-$string['admindirsettinghead'] = 'Admin direktorioa aukeratu...';
+$string['admindirsettinghead'] = 'Ezarri Admin direktorioa...';
 $string['admindirsettingsub'] = '<p>Oso web zerbitzari gutxik erabiltzen dute /admin kontrol-panel edo antzekora era sartzeko URL berezi gisa. Zoritxorrez, hau ez dator bat Moodlen lehenetsitako administrazio-orrien kokapenarekin. Nahi izanez gero, zure instalazioko admin direktorioaren izena alda dezakezu, hemen izen berria idatziz. Adibidez: <blockquote> moodleadmin</blockquote>.
 Horrela Moodle-ko admin loturak berrezarriko dira.</p>';
 $string['bypassed'] = 'Saihestua';
-$string['cannotcreatelangdir'] = 'Lang direktorioa ezin da sortu.';
-$string['cannotcreatetempdir'] = 'Temp direktorioa ezin da sortu.';
-$string['cannotdownloadcomponents'] = 'Ezin dira osagaiak jaitsi.';
-$string['cannotdownloadzipfile'] = 'ZIP fitxategia ezin da jaitsi.';
-$string['cannotfindcomponent'] = 'Osagaia ezin da aurkitu.';
+$string['cannotcreatelangdir'] = 'Ezin da hizkuntza-direktorioa sortu';
+$string['cannotcreatetempdir'] = 'Ezin da temp direktorioa sortu';
+$string['cannotdownloadcomponents'] = 'Ezin dira osagaiak jaitsi';
+$string['cannotdownloadzipfile'] = 'Ezin da ZIP fitxategia jaitsi';
+$string['cannotfindcomponent'] = 'Ezin da osagaia aurkitu';
 $string['cannotsavemd5file'] = 'Ezin da Md5 fitxategia gorde.';
-$string['cannotsavezipfile'] = 'ezin da ZIP fitxategia gorde.';
+$string['cannotsavezipfile'] = 'Ezin da ZIP fitxategia gorde.';
 $string['cannotunzipfile'] = 'Ezin da fitxategia deskonprimatu.';
 $string['caution'] = 'Kontuz';
 $string['check'] = 'Egiaztatu';
-$string['chooselanguagehead'] = 'Hizkuntza aukeratu';
+$string['chooselanguagehead'] = 'Aukeratu hizkuntza bat';
 $string['chooselanguagesub'] = 'Instalazio-prozesurako hizkuntza aukeratu, mesedez.';
 $string['closewindow'] = 'Itxi leiho hau';
-$string['compatibilitysettingshead'] = 'PHPren zure ezarpenak konprobatzen...';
+$string['compatibilitysettingshead'] = 'zure PHPren ezarpenak egiaztatzen...';
 $string['compatibilitysettingssub'] = 'Zure zerbitzariak baldintza hauek guztiak bete beharko ditu Moodle bertan egokiro funtzionatzeko.';
-$string['componentisuptodate'] = 'Osagaia eguneratu da.';
+$string['componentisuptodate'] = 'Osagaia eguneratu da';
 $string['configfilenotwritten'] = 'Instalazioaren scriptak ezin izan du aukeratutako zehaztapen guztiak beteko dituen config.php fitxategia automatikoki sortu. Mesedez, kode hau config.php izeneko fitxategi batean kopiatu eta Moodle-ren sustraiko direktorioan itsatsi.';
 $string['configfilewritten'] = 'config.php arrakastaz sortu da';
 $string['configurationcompletehead'] = 'Ezarpen osatua';
@@ -83,7 +83,7 @@ $string['downloadlanguagehead'] = 'Hizkuntza-paketea jaitsi';
 $string['downloadlanguagenotneeded'] = 'Instalazio-prozesua lehenetsitako hizkuntzaz jarrai dezakezu, \"$a\".';
 $string['downloadlanguagesub'] = 'Orain zure hizkuntza-paketea jaisteko eta hizkuntza horretan instalazioarekin jarraitzeko aukera daukazu.<br /><br />Jaitsiera eskuragarri ez balitz, prozesuak ingelesez jarraituko luke (instalazioa burututakoan, beste hizkuntzak jaitsi eta instalatu ahal izango dituzu).';
 $string['environmenterrortodo'] = 'Moodle-ren bertsio hau instalatu aurretik goian aurkitutako inguru-arazo (errore) guztiak zuzendu behar dituzu.';
-$string['environmenthead'] = 'Zure ingurunea konprobatzen';
+$string['environmenthead'] = 'Zure ingurunea konprobatzen...';
 $string['environmentrecommendinstall'] = 'gomendagarria da instalatuta/gaituta egotea';
 $string['environmentrecommendversion'] = '$a->needed bertsioa gomendatzen da eta zu $a->current ari zara egikaritzen';
 $string['environmentrequirecustomcheck'] = 'test hau pasatu beharra dago';
@@ -157,6 +157,7 @@ Horrek Moodle-k berak memoria-muga ezartzea ahalbidetzen du.</li>
 </ol>';
 $string['missingrequiredfield'] = 'Beharrezko eremuren bat falta da.';
 $string['moodledocslink'] = 'Moodle Doc-ak orri honetarako';
+$string['mssql'] = 'SQL*Server (mssql)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'Dena dela, zure guneak iso-8859-1 (latina) hizkuntzak BAKARRIK erabiltzen baditu zure oraingo MySQL 4.1.12 (edo hurrengoak) bertsioa erabiltzen jarrai dezakezu.';
 $string['mysql416required'] = 'MySQL 4.1.12 da gutxienez eskatzen den bertsioa Moodle 1.6 erabiltzeko eta etorkizunean informazio guztia UTF-8 bihurtu ahal izango dela bermatzeko.';
@@ -216,7 +217,9 @@ $string['welcomep60'] = 'Datozen orriek urrats erraz batzuen bidez gidatuko zait
 $string['welcomep70'] = '\"Hurrengoa\" botoia sakatu <strong>Moodle</strong>ren konfigurazioarekin jarraitzeko.';
 $string['wrongdestpath'] = 'Bide desegokia.';
 $string['wrongsourcebase'] = 'URL iturriaren oinarri akastuna.';
-$string['wrongzipfilename'] = 'ZIP fitxategiko izen desegokia.';
+$string['wrongzipfilename'] = 'ZIP fitxategiaren izen desegokia.';
 $string['wwwroot'] = 'Web helbidea';
 $string['wwwrooterror'] = '\'Web helbidea\' zuzena ez dela dirudi. Ezin izan da Moodle-ren instalazioa aurkitu. Jatorrizko balorea berrezarri da.';
+$string['xmlrpcrecommended'] = 'Aukerazko xmlrpc luzapena instalatzea baliagarria da Moodle Sarea funtzionalitaterako.';
+$string['ziprequired'] = 'Moodle-k orain Zip PHP luzapena behar du. Dagoeneko ez dira info-ZIP bitarrak erabiltzen ezta PclZip liburutegia ere.';
 ?>

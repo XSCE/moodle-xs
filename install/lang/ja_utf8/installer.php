@@ -26,7 +26,7 @@ $string['cannotunzipfile'] = 'ZIPファイルを解凍できません。';
 $string['caution'] = '警告';
 $string['check'] = 'チェック';
 $string['chooselanguagehead'] = '言語を選択してください。';
-$string['chooselanguagesub'] = 'インストールのみに使用する言語を選択してください。後に表示される画面で、サイトおよびユーザの言語を選択することができます。';
+$string['chooselanguagesub'] = 'インストールのみに使用する言語を選択してください。この言語は、サイトのデフォルト言語としても使用されます。サイト言語は、後で変更することが可能です。';
 $string['closewindow'] = 'ウィンドウを閉じる';
 $string['compatibilitysettingshead'] = 'PHP設定を確認しています ...';
 $string['compatibilitysettingssub'] = 'Moodleを適切に動作させるためには、あなたのサーバがこれらすべてのテストに通る必要があります。';
@@ -121,7 +121,7 @@ Moodleにアクセスする完全なウェブアドレスを指定してくだ�
 <br />
 <br />
 <p><b>データディレクトリ:</b>
-アップロードされたファイルをMoodleが保存する場所が必要です。 このディレクトリは、ウェブサーバのユーザ (通常は「nobody」または「apache」) が読み込みおよび書き込みできるようにしてください。しかし、ウェブから直接アクセスできないようにしてください。</p>';
+アップロードされたファイルをMoodleが保存する場所が必要です。 このディレクトリは、ウェブサーバのユーザ (通常は「nobody」または「apache」) が読み込みおよび書き込みできるようにしてください。しかし、ウェブから直接アクセスできないようにしてください。データディレクトリがない場合、インストーラーは作成を試みます。</p>';
 $string['dirroot'] = 'Moodleディレクトリ';
 $string['dirrooterror'] = '「Moodleディレクトリ」設定が間違っているようです - インストール済みMoodleが見つかりませんでした。下記の値がリセットされました。';
 $string['download'] = 'ダウンロード';
@@ -199,8 +199,8 @@ $string['memorylimithelp'] = '<p>現在、サーバのPHPメモリー制限が $
 $string['missingrequiredfield'] = 'いくつかの必須入力フィールドが入力されていません。';
 $string['moodledocslink'] = 'このページのMoodle Docs';
 $string['mssql'] = 'SQL*Server (mssql)';
-$string['mssql_n'] = 'SQL*Server UTF-8サポート (mssql_n)';
 $string['mssqlextensionisnotpresentinphp'] = 'PHPのMSSQL拡張モジュールが適切に設定されていないため、SQL*Serverと通信できません。あなたのphp.iniファイルをチェックするか、PHPを再コンパイルしてください。';
+$string['mssql_n'] = 'SQL*Server UTF-8サポート (mssql_n)';
 $string['mysql'] = 'MySQL (mysql)';
 $string['mysql416bypassed'] = 'あなたのサイトがiso-8859-1 (ラテン) 言語のみ使用している場合、現在インストールされている MySQL 4.1.12 (またはそれ以上) を使用することができます。';
 $string['mysql416required'] = 'Moodle1.6では、将来すべてのデータをUTF-8に変換するため、MySQL 4.1.16が要求される最低限のバージョンです。';
@@ -211,8 +211,8 @@ $string['name'] = '名称';
 $string['next'] = '次へ';
 $string['oci8po'] = 'Oracle (oci8po)';
 $string['ociextensionisnotpresentinphp'] = 'PHPのOCI8拡張モジュールが適切に設定されていないため、Oracleと通信できません。あなたのphp.iniファイルをチェックするか、PHPを再コンパイルしてください。';
-$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['odbcextensionisnotpresentinphp'] = 'PHPのODBC拡張モジュールが適切に設定されていないため、SQL*Serverと通信できません。あなたのphp.iniファイルをチェックするか、PHPを再コンパイルしてください。';
+$string['odbc_mssql'] = 'SQL*Server over ODBC (odbc_mssql)';
 $string['ok'] = 'OK';
 $string['opensslrecommended'] = 'Moodleネットワーキング機能を有効にするため、OpenSSLライブラリのインストールを強くお勧めします。';
 $string['pass'] = 'パス';
@@ -223,7 +223,7 @@ $string['phpversion'] = 'PHPバージョン';
 $string['phpversionerror'] = 'PHPバージョンは少なくとも 4.3.0 または 5.1.0 をお使いください (5.0.x には既知の多数の問題があります)。'; //TBD
 $string['phpversionhelp'] = '<p>Moodleには、少なくとも 4.3.0 または 5.1.0 のPHPバージョンが必要です (5.0.x には既知の多数の問題があります)。</p>
 <p>現在、バージョン $a が動作しています。</p>
-<p>PHPをアップグレードするか、新しいバージョンがインストールされているホストに移動してください!<br/>
+<p>PHPをアップグレードするか、新しいバージョンがインストールされているホストに移動してください!<br />
 (5.0.x の場合、バージョン 4.4.x にダウングレードすることもできます。)</p>';
 $string['postgres7'] = 'PostgreSQL (postgres7)';
 $string['previous'] = '前へ';

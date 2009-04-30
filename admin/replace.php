@@ -19,7 +19,7 @@ print_heading('Search and replace text throughout the whole database');
 if (!data_submitted() or !$search or !$replace or !confirm_sesskey()) {   /// Print a form
 
     print_simple_box_start('center');
-    echo '<div align="center">';
+    echo '<div class="mdl-align">';
     echo '<form action="replace.php" method="post">';
     echo '<input type="hidden" name="sesskey" value="'.$USER->sesskey.'" />';
     echo 'Search whole database for: <input type="text" name="search" /><br />';
@@ -39,6 +39,20 @@ if (!db_replace($search, $replace)) {
 }
 
 print_simple_box_end();
+
+/// Try to replace some well-known serialised contents (html blocks)
+notify('Replacing in html blocks...');
+$sql = "SELECT bi.*
+          FROM {$CFG->prefix}block_instance bi
+          JOIN {$CFG->prefix}block b ON b.id = bi.blockid
+         WHERE b.name = 'html'";
+if ($instances = get_records_sql($sql)) {
+    foreach ($instances as $instance) {
+        $blockobject = block_instance('html', $instance);
+        $blockobject->config->text = str_replace($search, $replace, $blockobject->config->text);
+        $blockobject->instance_config_commit($blockobject->pinned);
+    }
+}
 
 /// Rebuild course cache which might be incorrect now
 notify('Rebuilding course cache...');

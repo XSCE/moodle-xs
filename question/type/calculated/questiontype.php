@@ -122,6 +122,10 @@ class question_calculated_qtype extends question_dataset_dependent_questiontype 
         // Get old answers:
         global $CFG;
 
+        if (isset($question->answer) && !isset($question->answers)) {
+            $question->answers = $question->answer;
+        }
+
         // Get old versions of the objects
         if (!$oldanswers = get_records('question_answers', 'question', $question->id, 'id ASC')) {
             $oldanswers = array();
@@ -130,8 +134,8 @@ class question_calculated_qtype extends question_dataset_dependent_questiontype 
         if (!$oldoptions = get_records('question_calculated', 'question', $question->id, 'answer ASC')) {
             $oldoptions = array();
         }
-                // Save the units.
-        // Save units
+
+        // Save the units.
         $virtualqtype = $this->get_virtual_qtype();
         $result = $virtualqtype->save_numerical_units($question);
         if (isset($result->error)) {
@@ -344,8 +348,13 @@ class question_calculated_qtype extends question_dataset_dependent_questiontype 
         delete_records("question_numerical_units", "question", $questionid);
         if ($datasets = get_records('question_datasets', 'question', $questionid)) {
             foreach ($datasets as $dataset) {
-                delete_records('question_dataset_definitions', 'id', $dataset->datasetdefinition);
-                delete_records('question_dataset_items', 'definition', $dataset->datasetdefinition);
+                if (! get_records_select(
+                        'question_datasets',
+                        "question != $questionid
+                        AND datasetdefinition = $dataset->datasetdefinition;")){                                 
+                    delete_records('question_dataset_definitions', 'id', $dataset->datasetdefinition);
+                    delete_records('question_dataset_items', 'definition', $dataset->datasetdefinition);
+                }
             }
         }
         delete_records("question_datasets", "question", $questionid);

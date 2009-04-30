@@ -22,20 +22,12 @@ class question_shortanswer_qtype extends default_questiontype {
         return 'shortanswer';
     }
 
-    function get_question_options(&$question) {
-        // Get additional information from database
-        // and attach it to the question object
-        if (!$question->options = get_record('question_shortanswer', 'question', $question->id)) {
-            notify('Error: Missing question options!');
-            return false;
-        }
+    function extra_question_fields() {
+        return array('question_shortanswer','answers','usecase');
+    }
 
-        if (!$question->options->answers = get_records('question_answers', 'question',
-                $question->id, 'id ASC')) {
-            notify('Error: Missing question answers for shortanswer question ' . $question->id . '!');
-            return false;
-        }
-        return true;
+    function questionid_column_name() {
+        return 'question';
     }
 
     function save_question_options($question) {
@@ -82,22 +74,10 @@ class question_shortanswer_qtype extends default_questiontype {
             }
         }
 
-        if ($options = get_record("question_shortanswer", "question", $question->id)) {
-            $options->answers = implode(",",$answers);
-            $options->usecase = $question->usecase;
-            if (!update_record("question_shortanswer", $options)) {
-                $result->error = "Could not update quiz shortanswer options! (id=$options->id)";
-                return $result;
-            }
-        } else {
-            unset($options);
-            $options->question = $question->id;
-            $options->answers = implode(",",$answers);
-            $options->usecase = $question->usecase;
-            if (!insert_record("question_shortanswer", $options)) {
-                $result->error = "Could not insert quiz shortanswer options!";
-                return $result;
-            }
+        $question->answers = implode(',', $answers);
+        $parentresult = parent::save_question_options($question);
+        if($parentresult !== null) { // Parent function returns null if all is OK
+            return $parentresult;
         }
 
         // delete old answer records
@@ -115,17 +95,6 @@ class question_shortanswer_qtype extends default_questiontype {
         } else {
             return true;
         }
-    }
-
-    /**
-    * Deletes question from the question-type specific tables
-    *
-    * @return boolean Success/Failure
-    * @param object $question  The question being deleted
-    */
-    function delete_question($questionid) {
-        delete_records("question_shortanswer", "question", $questionid);
-        return true;
     }
 
     function print_question_formulation_and_controls(&$question, &$state, $cmoptions, $options) {
@@ -178,14 +147,9 @@ class question_shortanswer_qtype extends default_questiontype {
         include("$CFG->dirroot/question/type/shortanswer/display.html");
     }
 
-    // ULPGC ecastro
     function check_response(&$question, &$state) {
-        $answers = &$question->options->answers;
-        $testedstate = clone($state);
-        $teststate   = clone($state);
-        foreach($answers as $aid => $answer) {
-            $teststate->responses[''] = trim($answer->answer);
-            if($this->compare_responses($question, $testedstate, $teststate)) {
+        foreach($question->options->answers as $aid => $answer) {
+            if ($this->test_response($question, $state, $answer)) {
                 return $aid;
             }
         }
@@ -194,8 +158,7 @@ class question_shortanswer_qtype extends default_questiontype {
 
     function compare_responses($question, $state, $teststate) {
         if (isset($state->responses['']) && isset($teststate->responses[''])) {
-            return $this->compare_string_with_wildcard(stripslashes_safe($state->responses['']),
-                $teststate->responses[''], !$question->options->usecase);
+            return $state->responses[''] === $teststate->responses[''];
         }
         return false;
     }
@@ -237,34 +200,6 @@ class question_shortanswer_qtype extends default_questiontype {
         return $response;
     }
 
-    /// BACKUP FUNCTIONS ////////////////////////////
-
-    /*
-     * Backup the data in the question
-     *
-     * This is used in question/backuplib.php
-     */
-    function backup($bf,$preferences,$question,$level=6) {
-
-        $status = true;
-
-        $shortanswers = get_records('question_shortanswer', 'question', $question, 'id ASC');
-        //If there are shortanswers
-        if ($shortanswers) {
-            //Iterate over each shortanswer
-            foreach ($shortanswers as $shortanswer) {
-                $status = fwrite ($bf,start_tag("SHORTANSWER",$level,true));
-                //Print shortanswer contents
-                fwrite ($bf,full_tag("ANSWERS",$level+1,false,$shortanswer->answers));
-                fwrite ($bf,full_tag("USECASE",$level+1,false,$shortanswer->usecase));
-                $status = fwrite ($bf,end_tag("SHORTANSWER",$level,true));
-            }
-            //Now print question_answers
-            $status = question_backup_answers($bf,$preferences,$question);
-        }
-        return $status;
-    }
-
 /// RESTORE FUNCTIONS /////////////////
 
     /*
@@ -274,59 +209,36 @@ class question_shortanswer_qtype extends default_questiontype {
      */
     function restore($old_question_id,$new_question_id,$info,$restore) {
 
-        $status = true;
+        $status = parent::restore($old_question_id, $new_question_id, $info, $restore);
 
-        //Get the shortanswers array
-        $shortanswers = $info['#']['SHORTANSWER'];
-
-        //Iterate over shortanswers
-        for($i = 0; $i < sizeof($shortanswers); $i++) {
-            $sho_info = $shortanswers[$i];
-
-            //Now, build the question_shortanswer record structure
-            $shortanswer = new stdClass;
-            $shortanswer->question = $new_question_id;
-            $shortanswer->answers = backup_todb($sho_info['#']['ANSWERS']['0']['#']);
-            $shortanswer->usecase = backup_todb($sho_info['#']['USECASE']['0']['#']);
+        if ($status) {
+            $extraquestionfields = $this->extra_question_fields();
+            $questionextensiontable = array_shift($extraquestionfields);
 
             //We have to recode the answers field (a list of answers id)
-            //Extracts answer id from sequence
-            $answers_field = "";
-            $in_first = true;
-            $tok = strtok($shortanswer->answers,",");
-            while ($tok) {
-                //Get the answer from backup_ids
-                $answer = backup_getid($restore->backup_unique_code,"question_answers",$tok);
-                if ($answer) {
-                    if ($in_first) {
-                        $answers_field .= $answer->new_id;
-                        $in_first = false;
-                    } else {
-                        $answers_field .= ",".$answer->new_id;
+            $questionextradata = get_record($questionextensiontable, $this->questionid_column_name(), $new_question_id);
+            if (isset($questionextradata->answers)) {
+                $answers_field = "";
+                $in_first = true;
+                $tok = strtok($questionextradata->answers, ",");
+                while ($tok) {
+                    // Get the answer from backup_ids
+                    $answer = backup_getid($restore->backup_unique_code,"question_answers",$tok);
+                    if ($answer) {
+                        if ($in_first) {
+                            $answers_field .= $answer->new_id;
+                            $in_first = false;
+                        } else {
+                            $answers_field .= ",".$answer->new_id;
+                        }
                     }
+                    // Check for next
+                    $tok = strtok(",");
                 }
-                //check for next
-                $tok = strtok(",");
-            }
-            //We have the answers field recoded to its new ids
-            $shortanswer->answers = $answers_field;
-
-            //The structure is equal to the db, so insert the question_shortanswer
-            $newid = insert_record ("question_shortanswer",$shortanswer);
-
-            //Do some output
-            if (($i+1) % 50 == 0) {
-                if (!defined('RESTORE_SILENTLY')) {
-                    echo ".";
-                    if (($i+1) % 1000 == 0) {
-                        echo "<br />";
-                    }
-                }
-                backup_flush(300);
-            }
-
-            if (!$newid) {
-                $status = false;
+                // We have the answers field recoded to its new ids
+                $questionextradata->answers = $answers_field;
+                // Update the question
+                $status = $status && update_record($questionextensiontable, $questionextradata);
             }
         }
 
@@ -421,7 +333,7 @@ class question_shortanswer_qtype extends default_questiontype {
                     }
                     // print info about new penalty
                     // penalty is relevant only if the answer is not correct and further attempts are possible
-                    if (($state->last_graded->raw_grade < $question->maxgrade) and (QUESTION_EVENTCLOSEANDGRADE !== $state->event)) {
+                    if (($state->last_graded->raw_grade < $question->maxgrade) and (QUESTION_EVENTCLOSEANDGRADE != $state->event)) {
                         if ('' !== $state->last_graded->penalty && ((float)$state->last_graded->penalty) > 0.0) {
                             // A penalty was applied so display it
                             echo ' ';

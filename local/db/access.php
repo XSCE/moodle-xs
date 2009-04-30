@@ -75,7 +75,19 @@ $local_capabilities = array(
 	     => array(
 		      'coursecreator' => CAP_ALLOW
 		      )
-	     )
+             ),
+    'moodle/local:jabberpresence'
+    => array(
+             'riskbitmask' => RISK_PERSONAL,
+             'captype' => 'write',
+             'contextlevel' => CONTEXT_SYSTEM,
+             'legacy'
+             => array(
+                      'student' => CAP_ALLOW,
+                      'teacher' => CAP_ALLOW,
+                      'editingteacher' => CAP_ALLOW,
+                      )
+             )
 );
 
 ?>

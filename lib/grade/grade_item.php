@@ -735,7 +735,7 @@ class grade_item extends grade_object {
             $rawgrade *= $this->multfactor;
             $rawgrade += $this->plusfactor;
 
-            return bounded_number($this->grademin, $rawgrade, $this->grademax);
+            return $this->bounded_grade($rawgrade);
 
         } else if ($this->gradetype == GRADE_TYPE_SCALE) { // Dealing with a scale value
             if (empty($this->scale)) {
@@ -756,7 +756,7 @@ class grade_item extends grade_object {
                 $rawgrade = grade_grade::standardise_score($rawgrade, $rawmin, $rawmax, $this->grademin, $this->grademax);
             }
 
-            return (int)bounded_number(0, round($rawgrade+0.00001), $this->grademax);
+            return $this->bounded_grade($rawgrade);
 
 
         } else if ($this->gradetype == GRADE_TYPE_TEXT or $this->gradetype == GRADE_TYPE_NONE) { // no value
@@ -1163,9 +1163,10 @@ class grade_item extends grade_object {
     /**
      * Returns the most descriptive field for this object. This is a standard method used
      * when we do not know the exact type of an object.
+     * @param boolean $fulltotal: if the item is a category total, returns $categoryname."total" instead of "Category total" or "Course total"
      * @return string name
      */
-    function get_name() {
+    function get_name($fulltotal=false) {
         if (!empty($this->itemname)) {
             // MDL-10557
             return format_string($this->itemname);
@@ -1174,7 +1175,14 @@ class grade_item extends grade_object {
             return get_string('coursetotal', 'grades');
 
         } else if ($this->is_category_item()) {
-            return get_string('categorytotal', 'grades');
+            if ($fulltotal) {
+                $category = $this->load_parent_category();
+                $a = new stdClass();
+                $a->category = $category->get_name();
+                return get_string('categorytotalfull', 'grades', $a);
+            } else {
+                return get_string('categorytotal', 'grades');
+            }
 
         } else {
             return get_string('grade');
@@ -1207,6 +1215,43 @@ class grade_item extends grade_object {
         $this->parent_category =& $parent_category;
 
         return $this->update();
+    }
+
+    /**
+     * Makes sure value is a valid grade value.
+     * @param float $gradevalue
+     * @return mixed float or int fixed grade value
+     */
+    function bounded_grade($gradevalue) {
+        global $CFG;
+
+        if (is_null($gradevalue)) {
+            return null;
+        }
+
+        if ($this->gradetype == GRADE_TYPE_SCALE) {
+            // no >100% grades hack for scale grades!
+            // 1.5 is rounded to 2 ;-)
+            return (int)bounded_number($this->grademin, round($gradevalue+0.00001), $this->grademax);
+        }
+
+        $grademax = $this->grademax;
+
+        // NOTE: if you change this value you must manually reset the needsupdate flag in all grade items
+        $maxcoef = isset($CFG->gradeoverhundredprocentmax) ? $CFG->gradeoverhundredprocentmax : 10; // 1000% max by default
+
+        if (!empty($CFG->unlimitedgrades)) {
+            // NOTE: if you change this value you must manually reset the needsupdate flag in all grade items
+            $grademax = $grademax * $maxcoef;
+        } else if ($this->is_category_item() or $this->is_course_item()) {
+            $category = $this->load_item_category();
+            if ($category->aggregation >= 100) {
+                // grade >100% hack
+                $grademax = $grademax * $maxcoef;
+            }
+        }
+
+        return (float)bounded_number($this->grademin, $gradevalue, $grademax);
     }
 
     /**
@@ -1388,11 +1433,7 @@ class grade_item extends grade_object {
                 $grade->overridden = 0;
             }
 
-            if (is_null($finalgrade)) {
-                $grade->finalgrade = null;
-            } else {
-                $grade->finalgrade = bounded_number($this->grademin, $finalgrade, $this->grademax);
-            }
+            $grade->finalgrade = $this->bounded_grade($finalgrade);
         }
 
         // do we have comment from teacher?
@@ -1616,7 +1657,7 @@ class grade_item extends grade_object {
         $sql = "SELECT DISTINCT go.userid
                   FROM {$CFG->prefix}grade_grades go
                        JOIN {$CFG->prefix}grade_items gi
-                       ON gi.id = go.itemid
+                       ON (gi.id = go.itemid AND gi.courseid={$this->courseid})
                        LEFT OUTER JOIN {$CFG->prefix}grade_grades g
                        ON (g.userid = go.userid AND g.itemid = $this->id)
                  WHERE gi.id <> $this->id AND g.id IS NULL";
@@ -1735,11 +1776,7 @@ class grade_item extends grade_object {
 
         } else {
             // normalize
-            $result = bounded_number($this->grademin, $result, $this->grademax);
-            if ($this->gradetype == GRADE_TYPE_SCALE) {
-                $result = round($result+0.00001); // round scales upwards
-            }
-            $grade->finalgrade = $result;
+            $grade->finalgrade = $this->bounded_grade($result);
         }
 
         // update in db if changed
@@ -1864,6 +1901,64 @@ class grade_item extends grade_object {
 
         } else {
             return $this->decimals;
+        }
+    }
+
+    /**
+     * Returns a string representing the range of grademin - grademax for this grade item.
+     * @param int $rangesdisplaytype
+     * @param int $rangesdecimalpoints
+     * @return string
+     */
+    function get_formatted_range($rangesdisplaytype=null, $rangesdecimalpoints=null) {
+
+        global $USER;
+
+        // Determine which display type to use for this average
+        if (isset($USER->gradeediting) && $USER->gradeediting[$this->courseid]) {
+            $displaytype = GRADE_DISPLAY_TYPE_REAL;
+
+        } else if ($rangesdisplaytype == GRADE_REPORT_PREFERENCE_INHERIT) { // no ==0 here, please resave report and user prefs
+            $displaytype = $this->get_displaytype();
+
+        } else {
+            $displaytype = $rangesdisplaytype;
+        }
+
+        // Override grade_item setting if a display preference (not default) was set for the averages
+        if ($rangesdecimalpoints == GRADE_REPORT_PREFERENCE_INHERIT) {
+            $decimalpoints = $this->get_decimals();
+
+        } else {
+            $decimalpoints = $rangesdecimalpoints;
+        }
+
+        if ($displaytype == GRADE_DISPLAY_TYPE_PERCENTAGE) {
+            $grademin = "0 %";
+            $grademax = "100 %";
+
+        } else {
+            $grademin = grade_format_gradevalue($this->grademin, $this, true, $displaytype, $decimalpoints);
+            $grademax = grade_format_gradevalue($this->grademax, $this, true, $displaytype, $decimalpoints);
+        }
+
+        return $grademin.'&ndash;'. $grademax;
+    }
+
+    /**
+     * Queries parent categories recursively to find the aggregationcoef type that applies to this
+     * grade item.
+     */
+    function get_coefstring() {
+        $parent_category = $this->load_parent_category();
+        if ($this->is_category_item()) {
+            $parent_category = $parent_category->load_parent_category();
+        }
+
+        if ($parent_category->is_aggregationcoef_used()) {
+            return $parent_category->get_coefstring();
+        } else {
+            return false;
         }
     }
 }

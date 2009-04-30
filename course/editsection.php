@@ -52,7 +52,7 @@
         $stredit      = get_string('edit', '', " $sectionname");
         $strsummaryof = get_string('summaryof', '', " $sectionname");
     } else {
-        $sectionname  = get_string("name$course->format");
+        $sectionname  = get_section_name($course->format);
         $stredit      = get_string('edit', '', " $sectionname $section->section");
         $strsummaryof = get_string('summaryof', '', " $sectionname $form->section");
     }

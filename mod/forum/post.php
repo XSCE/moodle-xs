@@ -4,7 +4,6 @@
 
     require_once('../../config.php');
     require_once('lib.php');
-    require_once('post_form.php');
 
     $reply   = optional_param('reply', 0, PARAM_INT);
     $forum   = optional_param('forum', 0, PARAM_INT);
@@ -139,6 +138,9 @@
             error("Incorrect cm");
         }
 
+        // call course_setup to use forced language, MDL-6926 
+        course_setup($course->id);
+
         $coursecontext = get_context_instance(CONTEXT_COURSE, $course->id);
         $modcontext    = get_context_instance(CONTEXT_MODULE, $cm->id);
 
@@ -264,7 +266,7 @@
 
         $replycount = forum_count_replies($post);
 
-        if (!empty($confirm)) {    // User has confirmed the delete
+        if (!empty($confirm) && confirm_sesskey()) {    // User has confirmed the delete
 
             if ($post->totalscore) {
                 notice(get_string("couldnotdeleteratings", "forum"),
@@ -318,7 +320,7 @@
                 }
                 print_header();
                 notice_yesno(get_string("deletesureplural", "forum", $replycount+1),
-                             "post.php?delete=$delete&amp;confirm=$delete",
+                             "post.php?delete=$delete&amp;confirm=$delete&amp;sesskey=".sesskey(),
                              $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
 
                 forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
@@ -331,7 +333,7 @@
             } else {
                 print_header();
                 notice_yesno(get_string("deletesure", "forum", $replycount),
-                             "post.php?delete=$delete&amp;confirm=$delete",
+                             "post.php?delete=$delete&amp;confirm=$delete&amp;sesskey=".sesskey(),
                              $CFG->wwwroot.'/mod/forum/discuss.php?d='.$post->discussion.'#p'.$post->id);
                 forum_print_post($post, $discussion, $forum, $cm, $course, false, false, false);
             }
@@ -367,7 +369,7 @@
             error("You can't split discussions!");
         }
 
-        if (!empty($name)) {    // User has confirmed the prune
+        if (!empty($name) && confirm_sesskey()) {    // User has confirmed the prune
 
             $newdiscussion = new object();
             $newdiscussion->course       = $discussion->course;
@@ -439,6 +441,11 @@
         error('Could not get the course module for the forum instance.');
     }
     $modcontext = get_context_instance(CONTEXT_MODULE, $cm->id);
+
+    // setup course variable to force form language
+    // fix for MDL-6926
+    course_setup($course->id);
+    require_once('post_form.php');
 
     $mform_post = new mod_forum_post_form('post.php', array('course'=>$course, 'cm'=>$cm, 'coursecontext'=>$coursecontext, 'modcontext'=>$modcontext, 'forum'=>$forum, 'post'=>$post));
 

@@ -15,13 +15,13 @@
 
 /**
 * @param object $resource
-* @uses CFG, USER
+* @uses $CFG
 */
-function get_text_for_indexing_pdf(&$resource){
-    global $CFG, $USER;
+function get_text_for_indexing_pdf(&$resource, $directfile = ''){
+    global $CFG;
     
     // SECURITY : do not allow non admin execute anything on system !!
-    if (!isadmin($USER->id)) return;
+    if (!has_capability('moodle/site:doanything', get_context_instance(CONTEXT_SYSTEM))) return;
     
     // adds moodle root switch if none was defined
     if (!isset($CFG->block_search_usemoodleroot)){
@@ -35,22 +35,23 @@ function get_text_for_indexing_pdf(&$resource){
         preg_match("/^\S+/", $CFG->block_search_pdf_to_text_cmd, $matches);
         if (!file_exists("{$moodleroot}{$matches[0]}")){
             mtrace('Error with pdf to text converter command : executable not found at '.$moodleroot.$matches[0]);
-        }
-        else{
-            $file = escapeshellarg($CFG->dataroot.'/'.$resource->course.'/'.$resource->reference);
+        } else {
+            if ($directfile == ''){
+                $file = escapeshellarg("{$CFG->dataroot}/{$resource->course}/{$resource->reference}");
+            } else {
+                $file = escapeshellarg("{$CFG->dataroot}/{$directfile}");
+            }
             $command = trim($CFG->block_search_pdf_to_text_cmd);
             $text_converter_cmd = "{$moodleroot}{$command} $file -";
             $result = shell_exec($text_converter_cmd);
             if ($result){
                 return $result;
-            }
-            else{
+            } else {
                 mtrace('Error with pdf to text converter command : execution failed for '.$text_converter_cmd.'. Check for execution permission on pdf converter executable.');
                 return '';
             }
         }
-    } 
-    else {
+    } else {
         mtrace('Error with pdf to text converter command : command not set up. Execute once search block configuration.');
         return '';
     }

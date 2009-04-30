@@ -235,7 +235,7 @@
         }
         rs_close($backup_users);
         //Gets the user data
-        $info[0][0] = get_string("userswithfiles");
+        $info[0][0] = get_string('userswithfiles', 'moodle');
         $info[0][1] = $count;
 
         return $info;
@@ -483,6 +483,8 @@
         fwrite ($bf,full_tag("DATE",2,false,$preferences->backup_unique_code));
         //The original site wwwroot
         fwrite ($bf,full_tag("ORIGINAL_WWWROOT",2,false,$CFG->wwwroot));
+        //The original site identifier. MD5 hashed for security.
+        fwrite ($bf,full_tag("ORIGINAL_SITE_IDENTIFIER_HASH",2,false,md5(get_site_identifier())));
         //The zip method used
         if (!empty($CFG->zip)) {
             $zipmethod = 'external';
@@ -587,7 +589,7 @@
             fwrite ($bf,full_tag("SITEFILES",3,false,"false"));
         }
         //The gradebook histories
-        if ($preferences->backup_gradebook_history == 1) {
+        if (empty($CFG->disablegradehistory) && $preferences->backup_gradebook_history == 1) {
             fwrite ($bf,full_tag("GRADEBOOKHISTORIES",3,false,"true"));
         } else {
             fwrite ($bf,full_tag("GRADEBOOKHISTORIES",3,false,"false"));
@@ -1272,11 +1274,16 @@
 
         // Use a recordset to for the memory handling on to
         // the DB and run faster
+        // Note the outer join with mnet_host: It shouldn't be neccesary
+        // but there are some sites having mnet_host records missing
+        // and that causes backup to fail (no users). Being a bit more
+        // flexible here (outer joing) we bypass the problem and doesn't
+        // cause more troubles. Eloy - MDL-16879
         $users = get_recordset_sql("SELECT b.old_id, b.table_name, b.info,
                                            u.*, m.wwwroot
                                     FROM   {$CFG->prefix}backup_ids b
                                       JOIN {$CFG->prefix}user       u ON b.old_id=u.id
-                                      JOIN {$CFG->prefix}mnet_host  m ON u.mnethostid=m.id
+                                      LEFT JOIN {$CFG->prefix}mnet_host  m ON u.mnethostid=m.id
                                     WHERE b.backup_code = '$preferences->backup_unique_code' AND
                                           b.table_name = 'user'");
 
@@ -1333,7 +1340,7 @@
                 fwrite ($bf,full_tag("AJAX",4,false,$user->ajax));
                 fwrite ($bf,full_tag("AUTOSUBSCRIBE",4,false,$user->autosubscribe));
                 fwrite ($bf,full_tag("TRACKFORUMS",4,false,$user->trackforums));
-                if ($user->mnethostid != $CFG->mnet_localhost_id) {
+                if ($user->mnethostid != $CFG->mnet_localhost_id && !empty($user->wwwroot)) {
                     fwrite ($bf,full_tag("MNETHOSTURL",4,false,$user->wwwroot));
                 }
                 fwrite ($bf,full_tag("TIMEMODIFIED",4,false,$user->timemodified));
@@ -1370,11 +1377,11 @@
                 fwrite ($bf,end_tag("ROLES",4,true));
 
                 //Check if we have custom profile fields to backup
-                if ($cpfields = get_records_sql("SELECT uif.shortname, uif.datatype, uid.data
+                if ($cpfields = get_records_sql("SELECT uif.shortname, uif.datatype, uidata.data
                                                  FROM {$CFG->prefix}user_info_field uif,
-                                                      {$CFG->prefix}user_info_data uid
-                                                 WHERE uif.id = uid.fieldid
-                                                   AND uid.userid = $user->id")) {
+                                                      {$CFG->prefix}user_info_data uidata
+                                                 WHERE uif.id = uidata.fieldid
+                                                   AND uidata.userid = $user->id")) {
                     //Start USER_CUSTOM_PROFILE_FIELDS tag
                     fwrite ($bf,start_tag("USER_CUSTOM_PROFILE_FIELDS",4,true));
                     //Write custom profile fields
@@ -1564,8 +1571,8 @@
 
         $status = backup_gradebook_item_info($bf,$preferences, $backupall);
 
-        // backup gradebook histories
-        if ($preferences->backup_gradebook_history) {
+        // backup gradebook histories (only if grade history is enabled and selected)
+        if (empty($CFG->disablegradehistory) && $preferences->backup_gradebook_history) {
             $status = backup_gradebook_outcomes_history($bf, $preferences);
             $status = backup_gradebook_categories_history_info($bf, $preferences);
             $status = backup_gradebook_items_history_info($bf, $preferences);
@@ -1827,28 +1834,28 @@
 
         // find all grade categories history
         if ($chs = get_records('grade_categories_history', 'courseid', $preferences->backup_course)) {
-            fwrite ($bf,start_tag("GRADE_CATEGORIES_HISTORIES",5,true));
+            fwrite ($bf,start_tag("GRADE_CATEGORIES_HISTORIES",3,true));
             foreach ($chs as $ch) {
-                fwrite ($bf,start_tag("GRADE_CATEGORIES_HISTORY",6,true));
-                fwrite ($bf,full_tag("ID",7,false,$ch->id));
-                fwrite ($bf,full_tag("ACTION",7,false,$ch->action));
-                fwrite ($bf,full_tag("OLDID",7,false,$ch->oldid));
-                fwrite ($bf,full_tag("SOURCE",7,false,$ch->source));
-                fwrite ($bf,full_tag("TIMEMODIFIED",7,false,$ch->timemodified));
-                fwrite ($bf,full_tag("LOGGEDUSER",7,false,$ch->loggeduser));
-                fwrite ($bf,full_tag("PARENT",7,false,$ch->parent));
-                fwrite ($bf,full_tag("DEPTH",7,false,$ch->depth));
-                fwrite ($bf,full_tag("PATH",7,false,$ch->path));
-                fwrite ($bf,full_tag("FULLNAME",7,false,$ch->fullname));
-                fwrite ($bf,full_tag("AGGRETGATION",7,false,$ch->aggregation));
-                fwrite ($bf,full_tag("KEEPHIGH",7,false,$ch->keephigh));
-                fwrite ($bf,full_tag("DROPLOW",7,false,$ch->droplow));
-                fwrite ($bf,full_tag("AGGREGATEONLYGRADED",7,false,$ch->aggregateonlygraded));
-                fwrite ($bf,full_tag("AGGREGATEOUTCOMES",7,false,$ch->aggregateoutcomes));
-                fwrite ($bf,full_tag("AGGREGATESUBCATS",7,false,$ch->aggregatesubcats));
-                fwrite ($bf,end_tag("GRADE_CATEGORIES_HISTORY",6,true));
+                fwrite ($bf,start_tag("GRADE_CATEGORIES_HISTORY",4,true));
+                fwrite ($bf,full_tag("ID",5,false,$ch->id));
+                fwrite ($bf,full_tag("ACTION",5,false,$ch->action));
+                fwrite ($bf,full_tag("OLDID",5,false,$ch->oldid));
+                fwrite ($bf,full_tag("SOURCE",5,false,$ch->source));
+                fwrite ($bf,full_tag("TIMEMODIFIED",5,false,$ch->timemodified));
+                fwrite ($bf,full_tag("LOGGEDUSER",5,false,$ch->loggeduser));
+                fwrite ($bf,full_tag("PARENT",5,false,$ch->parent));
+                fwrite ($bf,full_tag("DEPTH",5,false,$ch->depth));
+                fwrite ($bf,full_tag("PATH",5,false,$ch->path));
+                fwrite ($bf,full_tag("FULLNAME",5,false,$ch->fullname));
+                fwrite ($bf,full_tag("AGGRETGATION",5,false,$ch->aggregation));
+                fwrite ($bf,full_tag("KEEPHIGH",5,false,$ch->keephigh));
+                fwrite ($bf,full_tag("DROPLOW",5,false,$ch->droplow));
+                fwrite ($bf,full_tag("AGGREGATEONLYGRADED",5,false,$ch->aggregateonlygraded));
+                fwrite ($bf,full_tag("AGGREGATEOUTCOMES",5,false,$ch->aggregateoutcomes));
+                fwrite ($bf,full_tag("AGGREGATESUBCATS",5,false,$ch->aggregatesubcats));
+                fwrite ($bf,end_tag("GRADE_CATEGORIES_HISTORY",4,true));
             }
-            $status = fwrite ($bf,end_tag("GRADE_CATEGORIES_HISTORIES",5,true));
+            $status = fwrite ($bf,end_tag("GRADE_CATEGORIES_HISTORIES",3,true));
         }
         return $status;
     }
@@ -1864,39 +1871,39 @@
                                            JOIN {$CFG->prefix}grade_items gi
                                              ON gi.id = ggh.itemid
                                      WHERE gi.courseid = $preferences->backup_course")) {
-            fwrite ($bf,start_tag("GRADE_GRADES_HISTORIES",5,true));
+            fwrite ($bf,start_tag("GRADE_GRADES_HISTORIES",3,true));
             foreach ($chs as $ch) {
             /// Grades are only sent to backup if the user is one target user
                 if (backup_getid($preferences->backup_unique_code, 'user', $ch->userid)) {
-                    fwrite ($bf,start_tag("GRADE_GRADES_HISTORY",6,true));
-                    fwrite ($bf,full_tag("ID",7,false,$ch->id));
-                    fwrite ($bf,full_tag("ACTION",7,false,$ch->action));
-                    fwrite ($bf,full_tag("OLDID",7,false,$ch->oldid));
-                    fwrite ($bf,full_tag("SOURCE",7,false,$ch->source));
-                    fwrite ($bf,full_tag("TIMEMODIFIED",7,false,$ch->timemodified));
-                    fwrite ($bf,full_tag("LOGGEDUSER",7,false,$ch->loggeduser));
-                    fwrite ($bf,full_tag("ITEMID",7,false,$ch->itemid));
-                    fwrite ($bf,full_tag("USERID",7,false,$ch->userid));
-                    fwrite ($bf,full_tag("RAWGRADE",7,false,$ch->rawgrade));
-                    fwrite ($bf,full_tag("RAWGRADEMAX",7,false,$ch->rawgrademax));
-                    fwrite ($bf,full_tag("RAWGRADEMIN",7,false,$ch->rawgrademin));
-                    fwrite ($bf,full_tag("RAWSCALEID",7,false,$ch->rawscaleid));
-                    fwrite ($bf,full_tag("USERMODIFIED",7,false,$ch->usermodified));
-                    fwrite ($bf,full_tag("FINALGRADE",7,false,$ch->finalgrade));
-                    fwrite ($bf,full_tag("HIDDEN",7,false,$ch->hidden));
-                    fwrite ($bf,full_tag("LOCKED",7,false,$ch->locked));
-                    fwrite ($bf,full_tag("LOCKTIME",7,false,$ch->locktime));
-                    fwrite ($bf,full_tag("EXPORTED",7,false,$ch->exported));
-                    fwrite ($bf,full_tag("OVERRIDDEN",7,false,$ch->overridden));
-                    fwrite ($bf,full_tag("EXCLUDED",7,false,$ch->excluded));
-                    fwrite ($bf,full_tag("FEEDBACK",7,false,$ch->feedback));
-                    fwrite ($bf,full_tag("FEEDBACKFORMAT",7,false,$ch->feedbackformat));
-                    fwrite ($bf,full_tag("INFORMATION",7,false,$ch->information));
-                    fwrite ($bf,full_tag("INFORMATIONFORMAT",7,false,$ch->informationformat));
-                    fwrite ($bf,end_tag("GRADE_GRADES_HISTORY",6,true));
+                    fwrite ($bf,start_tag("GRADE_GRADES_HISTORY",4,true));
+                    fwrite ($bf,full_tag("ID",5,false,$ch->id));
+                    fwrite ($bf,full_tag("ACTION",5,false,$ch->action));
+                    fwrite ($bf,full_tag("OLDID",5,false,$ch->oldid));
+                    fwrite ($bf,full_tag("SOURCE",5,false,$ch->source));
+                    fwrite ($bf,full_tag("TIMEMODIFIED",5,false,$ch->timemodified));
+                    fwrite ($bf,full_tag("LOGGEDUSER",5,false,$ch->loggeduser));
+                    fwrite ($bf,full_tag("ITEMID",5,false,$ch->itemid));
+                    fwrite ($bf,full_tag("USERID",5,false,$ch->userid));
+                    fwrite ($bf,full_tag("RAWGRADE",5,false,$ch->rawgrade));
+                    fwrite ($bf,full_tag("RAWGRADEMAX",5,false,$ch->rawgrademax));
+                    fwrite ($bf,full_tag("RAWGRADEMIN",5,false,$ch->rawgrademin));
+                    fwrite ($bf,full_tag("RAWSCALEID",5,false,$ch->rawscaleid));
+                    fwrite ($bf,full_tag("USERMODIFIED",5,false,$ch->usermodified));
+                    fwrite ($bf,full_tag("FINALGRADE",5,false,$ch->finalgrade));
+                    fwrite ($bf,full_tag("HIDDEN",5,false,$ch->hidden));
+                    fwrite ($bf,full_tag("LOCKED",5,false,$ch->locked));
+                    fwrite ($bf,full_tag("LOCKTIME",5,false,$ch->locktime));
+                    fwrite ($bf,full_tag("EXPORTED",5,false,$ch->exported));
+                    fwrite ($bf,full_tag("OVERRIDDEN",5,false,$ch->overridden));
+                    fwrite ($bf,full_tag("EXCLUDED",5,false,$ch->excluded));
+                    fwrite ($bf,full_tag("FEEDBACK",5,false,$ch->feedback));
+                    fwrite ($bf,full_tag("FEEDBACKFORMAT",5,false,$ch->feedbackformat));
+                    fwrite ($bf,full_tag("INFORMATION",5,false,$ch->information));
+                    fwrite ($bf,full_tag("INFORMATIONFORMAT",5,false,$ch->informationformat));
+                    fwrite ($bf,end_tag("GRADE_GRADES_HISTORY",4,true));
                 }
             }
-            $status = fwrite ($bf,end_tag("GRADE_GRADES_HISTORIES",5,true));
+            $status = fwrite ($bf,end_tag("GRADE_GRADES_HISTORIES",3,true));
         }
         return $status;
     }
@@ -1908,43 +1915,43 @@
 
         // find all grade categories history
         if ($chs = get_records('grade_items_history','courseid', $preferences->backup_course)) {
-            fwrite ($bf,start_tag("GRADE_ITEM_HISTORIES",5,true));
+            fwrite ($bf,start_tag("GRADE_ITEM_HISTORIES",3,true));
             foreach ($chs as $ch) {
-                fwrite ($bf,start_tag("GRADE_ITEM_HISTORY",6,true));
-                fwrite ($bf,full_tag("ID",7,false,$ch->id));
-                fwrite ($bf,full_tag("ACTION",7,false,$ch->action));
-                fwrite ($bf,full_tag("OLDID",7,false,$ch->oldid));
-                fwrite ($bf,full_tag("SOURCE",7,false,$ch->source));
-                fwrite ($bf,full_tag("TIMEMODIFIED",7,false,$ch->timemodified));
-                fwrite ($bf,full_tag("LOGGEDUSER",7,false,$ch->loggeduser));
-                fwrite ($bf,full_tag("CATEGORYID",7,false,$ch->categoryid));
-                fwrite ($bf,full_tag("ITEMNAME",7,false,$ch->itemname));
-                fwrite ($bf,full_tag("ITEMTYPE",7,false,$ch->itemtype));
-                fwrite ($bf,full_tag("ITEMMODULE",7,false,$ch->itemmodule));
-                fwrite ($bf,full_tag("ITEMINSTANCE",7,false,$ch->iteminstance));
-                fwrite ($bf,full_tag("ITEMNUMBER",7,false,$ch->itemnumber));
-                fwrite ($bf,full_tag("ITEMINFO",7,false,$ch->iteminfo));
-                fwrite ($bf,full_tag("IDNUMBER",7,false,$ch->idnumber));
-                fwrite ($bf,full_tag("CALCULATION",7,false,$ch->calculation));
-                fwrite ($bf,full_tag("GRADETYPE",7,false,$ch->gradetype));
-                fwrite ($bf,full_tag("GRADEMAX",7,false,$ch->grademax));
-                fwrite ($bf,full_tag("GRADEMIN",7,false,$ch->grademin));
-                fwrite ($bf,full_tag("SCALEID",7,false,$ch->scaleid));
-                fwrite ($bf,full_tag("OUTCOMEID",7,false,$ch->outcomeid));
-                fwrite ($bf,full_tag("GRADEPASS",7,false,$ch->gradepass));
-                fwrite ($bf,full_tag("MULTFACTOR",7,false,$ch->multfactor));
-                fwrite ($bf,full_tag("PLUSFACTOR",7,false,$ch->plusfactor));
-                fwrite ($bf,full_tag("AGGREGATIONCOEF",7,false,$ch->aggregationcoef));
-                fwrite ($bf,full_tag("SORTORDER",7,false,$ch->sortorder));
+                fwrite ($bf,start_tag("GRADE_ITEM_HISTORY",4,true));
+                fwrite ($bf,full_tag("ID",5,false,$ch->id));
+                fwrite ($bf,full_tag("ACTION",5,false,$ch->action));
+                fwrite ($bf,full_tag("OLDID",5,false,$ch->oldid));
+                fwrite ($bf,full_tag("SOURCE",5,false,$ch->source));
+                fwrite ($bf,full_tag("TIMEMODIFIED",5,false,$ch->timemodified));
+                fwrite ($bf,full_tag("LOGGEDUSER",5,false,$ch->loggeduser));
+                fwrite ($bf,full_tag("CATEGORYID",5,false,$ch->categoryid));
+                fwrite ($bf,full_tag("ITEMNAME",5,false,$ch->itemname));
+                fwrite ($bf,full_tag("ITEMTYPE",5,false,$ch->itemtype));
+                fwrite ($bf,full_tag("ITEMMODULE",5,false,$ch->itemmodule));
+                fwrite ($bf,full_tag("ITEMINSTANCE",5,false,$ch->iteminstance));
+                fwrite ($bf,full_tag("ITEMNUMBER",5,false,$ch->itemnumber));
+                fwrite ($bf,full_tag("ITEMINFO",5,false,$ch->iteminfo));
+                fwrite ($bf,full_tag("IDNUMBER",5,false,$ch->idnumber));
+                fwrite ($bf,full_tag("CALCULATION",5,false,$ch->calculation));
+                fwrite ($bf,full_tag("GRADETYPE",5,false,$ch->gradetype));
+                fwrite ($bf,full_tag("GRADEMAX",5,false,$ch->grademax));
+                fwrite ($bf,full_tag("GRADEMIN",5,false,$ch->grademin));
+                fwrite ($bf,full_tag("SCALEID",5,false,$ch->scaleid));
+                fwrite ($bf,full_tag("OUTCOMEID",5,false,$ch->outcomeid));
+                fwrite ($bf,full_tag("GRADEPASS",5,false,$ch->gradepass));
+                fwrite ($bf,full_tag("MULTFACTOR",5,false,$ch->multfactor));
+                fwrite ($bf,full_tag("PLUSFACTOR",5,false,$ch->plusfactor));
+                fwrite ($bf,full_tag("AGGREGATIONCOEF",5,false,$ch->aggregationcoef));
+                fwrite ($bf,full_tag("SORTORDER",5,false,$ch->sortorder));
                 //fwrite ($bf,full_tag("DISPLAY",7,false,$ch->display));
                 //fwrite ($bf,full_tag("DECIMALS",7,false,$ch->decimals));
-                fwrite ($bf,full_tag("HIDDEN",7,false,$ch->hidden));
-                fwrite ($bf,full_tag("LOCKED",7,false,$ch->locked));
-                fwrite ($bf,full_tag("LOCKTIME",7,false,$ch->locktime));
-                fwrite ($bf,full_tag("NEEDSUPDATE",7,false,$ch->needsupdate));
-                fwrite ($bf,end_tag("GRADE_ITEM_HISTORY",6,true));
+                fwrite ($bf,full_tag("HIDDEN",5,false,$ch->hidden));
+                fwrite ($bf,full_tag("LOCKED",5,false,$ch->locked));
+                fwrite ($bf,full_tag("LOCKTIME",5,false,$ch->locktime));
+                fwrite ($bf,full_tag("NEEDSUPDATE",5,false,$ch->needsupdate));
+                fwrite ($bf,end_tag("GRADE_ITEM_HISTORY",4,true));
             }
-            $status = fwrite ($bf,end_tag("GRADE_ITEM_HISTORIES",5,true));
+            $status = fwrite ($bf,end_tag("GRADE_ITEM_HISTORIES",3,true));
 
         }
         return $status;
@@ -1956,22 +1963,22 @@
 
         // find all grade categories history
         if ($chs = get_records('grade_outcomes_history','courseid', $preferences->backup_course)) {
-            fwrite ($bf,start_tag("GRADE_OUTCOME_HISTORIES",5,true));
+            fwrite ($bf,start_tag("GRADE_OUTCOME_HISTORIES",3,true));
             foreach ($chs as $ch) {
-                fwrite ($bf,start_tag("GRADE_OUTCOME_HISTORY",6,true));
-                fwrite ($bf,full_tag("ID",7,false,$ch->id));
-                fwrite ($bf,full_tag("OLDID",7,false,$ch->oldid));
-                fwrite ($bf,full_tag("ACTION",7,false,$ch->action));
-                fwrite ($bf,full_tag("SOURCE",7,false,$ch->source));
-                fwrite ($bf,full_tag("TIMEMODIFIED",7,false,$ch->timemodified));
-                fwrite ($bf,full_tag("LOGGEDUSER",7,false,$ch->loggeduser));
-                fwrite ($bf,full_tag("SHORTNAME",7,false,$ch->shortname));
-                fwrite ($bf,full_tag("FULLNAME",7,false,$ch->fullname));
-                fwrite ($bf,full_tag("SCALEID",7,false,$ch->scaleid));
-                fwrite ($bf,full_tag("DESCRIPTION",7,false,$ch->description));
-                fwrite ($bf,end_tag("GRADE_OUTCOME_HISTORY",6,true));
+                fwrite ($bf,start_tag("GRADE_OUTCOME_HISTORY",4,true));
+                fwrite ($bf,full_tag("ID",5,false,$ch->id));
+                fwrite ($bf,full_tag("OLDID",5,false,$ch->oldid));
+                fwrite ($bf,full_tag("ACTION",5,false,$ch->action));
+                fwrite ($bf,full_tag("SOURCE",5,false,$ch->source));
+                fwrite ($bf,full_tag("TIMEMODIFIED",5,false,$ch->timemodified));
+                fwrite ($bf,full_tag("LOGGEDUSER",5,false,$ch->loggeduser));
+                fwrite ($bf,full_tag("SHORTNAME",5,false,$ch->shortname));
+                fwrite ($bf,full_tag("FULLNAME",5,false,$ch->fullname));
+                fwrite ($bf,full_tag("SCALEID",5,false,$ch->scaleid));
+                fwrite ($bf,full_tag("DESCRIPTION",5,false,$ch->description));
+                fwrite ($bf,end_tag("GRADE_OUTCOME_HISTORY",4,true));
             }
-            $status = fwrite ($bf,end_tag("GRADE_OUTCOME_HISTORIES",5,true));
+            $status = fwrite ($bf,end_tag("GRADE_OUTCOME_HISTORIES",3,true));
         }
         return $status;
     }
@@ -2290,7 +2297,7 @@
     //It does this conversions:
     // - $CFG->wwwroot/file.php/courseid ------------------> $@FILEPHP@$ (slasharguments links)
     // - $CFG->wwwroot/file.php?file=/courseid ------------> $@FILEPHP@$ (non-slasharguments links)
-    // - Every module xxxx_encode_content_links() is executed too
+    // - Every module/block/course_format xxxx_encode_content_links() is executed too
     //
     function backup_encode_absolute_links($content) {
 
@@ -2325,14 +2332,22 @@
             //We are in manual backups so global preferences must exist!!
             $mypreferences = $preferences;
         }
-
         //First, we check for every call to file.php inside the course
         $search = array($CFG->wwwroot.'/file.php/'.$mypreferences->backup_course,
-                        $CFG->wwwroot.'/file.php?file=/'.$mypreferences->backup_course);
+                        $CFG->wwwroot.'/file.php?file=/'.$mypreferences->backup_course,
+                        $CFG->wwwroot.'/file.php?file=%2f'.$mypreferences->backup_course,
+                        $CFG->wwwroot.'/file.php?file=%2F'.$mypreferences->backup_course);
 
-        $replace = array('$@FILEPHP@$','$@FILEPHP@$');
+        $replace = array('$@FILEPHP@$', '$@FILEPHP@$', '$@FILEPHP@$', '$@FILEPHP@$');
 
         $result = str_replace($search,$replace,$content);
+
+        // Now we look for any '$@FILEPHP@$' URLs, replacing:
+        //     - slashes and %2F by $@SLASH@$
+        //     - &forcedownload=1 &amp;forcedownload=1 and ?forcedownload=1 by $@FORCEDOWNLOAD@$
+        // This way, backup contents will be neutral and independent of slasharguments configuration. MDL-18799
+        $search = '/(\$@FILEPHP@\$)((?:(?:\/|%2f|%2F))(?:(?:\([-;:@#&=a-zA-Z0-9\$~_.+!*\',]*?\))|[-;:@#&=a-zA-Z0-9\$~_.+!*\',]|%[a-fA-F0-9]{2}|\/)*)?(\?(?:(?:(?:\([-;:@#&=a-zA-Z0-9\$~_.+!*\',]*?\))|[-;:@#&=?a-zA-Z0-9\$~_.+!*\',]|%[a-fA-F0-9]{2}|\/)*))?(?<![,.;])/';
+        $result = preg_replace_callback($search, 'backup_process_filephp_uses', $result);
 
         foreach ($mypreferences->mods as $name => $info) {
         /// We only include the corresponding backuplib.php if it hasn't been included before
@@ -2347,6 +2362,25 @@
             if (function_exists($function_name)) {
                 $result = $function_name($result,$mypreferences);
             }
+        }
+
+        // For the current course format call its encode_content_links method (if it exists)
+        static $format_function_name;
+        if (!isset($format_function_name)) {
+            $format_function_name = false;
+            if ($format = get_field('course', 'format', 'id', $mypreferences->backup_course)) {
+                if (file_exists("$CFG->dirroot/course/format/$format/backuplib.php")) {
+                    include_once("$CFG->dirroot/course/format/$format/backuplib.php");
+                    $function_name = $format.'_encode_format_content_links';
+                    if (function_exists($function_name)) {
+                        $format_function_name = $function_name;
+                    }
+                }
+            }
+        }
+        // If the above worked - then we have a function to call
+        if ($format_function_name) {
+            $result = $format_function_name($result, $mypreferences);
         }
 
         // For each block, call its encode_content_links method.
@@ -2371,6 +2405,21 @@
         if ($result != $content) {
             debugging('<br /><hr />'.s($content).'<br />changed to<br />'.s($result).'<hr /><br />');
         }
+
+        return $result;
+    }
+
+    /**
+     * Callback preg_replace function used by backup_encode_absolute_links()
+     * to process $@FILEPHP@$ URLs to get slasharguments independent URLs
+     */
+    function backup_process_filephp_uses($matches) {
+
+        // Replace slashes (plain and encoded) and forcedownload=1 parameter
+        $search = array('/', '%2f', '%2F', '?forcedownload=1', '&forcedownload=1', '&amp;forcedownload=1');
+        $replace = array('$@SLASH@$', '$@SLASH@$', '$@SLASH@$', '$@FORCEDOWNLOAD@$', '$@FORCEDOWNLOAD@$', '$@FORCEDOWNLOAD@$');
+
+        $result = $matches[1] . (isset($matches[2]) ? str_replace($search, $replace, $matches[2]) : '') . (isset($matches[3]) ? str_replace($search, $replace, $matches[3]) : '');
 
         return $result;
     }

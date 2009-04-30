@@ -163,7 +163,7 @@ function upgrade_plugins($type, $dir, $return) {
                         $installfunction = $plugin->name.'_install';
                         if (function_exists($installfunction)) {
                             if (! $installfunction() ) {
-                                notify('Encountered a problem running install function for '.$module->name.'!');
+                                notify('Encountered a problem running install function for '.$plugin->name.'!');
                             }
                         }
                     }
@@ -799,6 +799,18 @@ function admin_critical_warnings_present() {
 }
 
 /**
+ * Detects if float support at least 10 deciman digits
+ * and also if float-->string conversion works as expected.
+ * @return bool true if problem found
+ */
+function is_float_problem() {
+    $num1 = 2009010200.01;
+    $num2 = 2009010200.02;
+
+    return ((string)$num1 === (string)$num2 or $num1 === $num2 or $num2 <= (string)$num1);
+}
+
+/**
  * Try to verify that dataroot is not accessible from web.
  * It is not 100% correct but might help to reduce number of vulnerable sites.
  *
@@ -853,8 +865,10 @@ function is_dataroot_insecure($fetchtest=false) {
     }
 
     $testurl = $datarooturl.'/diag/public.txt';
-
-    if (extension_loaded('curl') and ($ch = @curl_init($testurl)) !== false) {
+    if (extension_loaded('curl') and
+        !(stripos(ini_get('disable_functions'), 'curl_init') !== FALSE) and
+        !(stripos(ini_get('disable_functions'), 'curl_setop') !== FALSE) and
+        ($ch = @curl_init($testurl)) !== false) {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, false);
         $data = curl_exec($ch);
@@ -1364,6 +1378,9 @@ class admin_externalpage extends part_of_admin_tree {
      * @param string $visiblename The displayed name for this external page. Usually obtained through get_string().
      * @param string $url The external URL that we should link to when someone requests this external page.
      * @param mixed $req_capability The role capability/permission a user must have to access this external page. Defaults to 'moodle/site:config'.
+     * @param boolean $hidden Is this external page hidden in admin tree block? Default false.
+     * @param context $context The context the page relates to. Not sure what happens
+     *      if you specify something other than system or front page. Defaults to system.
      */
     function admin_externalpage($name, $visiblename, $url, $req_capability='moodle/site:config', $hidden=false, $context=NULL) {
         $this->name        = $name;
@@ -1374,7 +1391,7 @@ class admin_externalpage extends part_of_admin_tree {
         } else {
             $this->req_capability = array($req_capability);
         }
-        $this->hidden  = $hidden;
+        $this->hidden = $hidden;
         $this->context = $context;
     }
 
@@ -1435,7 +1452,7 @@ class admin_externalpage extends part_of_admin_tree {
         }
         $context = empty($this->context) ? get_context_instance(CONTEXT_SYSTEM) : $this->context;
         foreach($this->req_capability as $cap) {
-            if (has_capability($cap, $context)) {
+            if (is_valid_capability($cap) and has_capability($cap, $context)) {
                 return true;
             }
         }
@@ -1585,7 +1602,7 @@ class admin_settingpage extends part_of_admin_tree {
         }
         $context = empty($this->context) ? get_context_instance(CONTEXT_SYSTEM) : $this->context;
         foreach($this->req_capability as $cap) {
-            if (has_capability($cap, $context)) {
+            if (is_valid_capability($cap) and has_capability($cap, $context)) {
                 return true;
             }
         }
@@ -1648,10 +1665,37 @@ class admin_setting {
      * @param mixed $defaultsetting string or array depending on implementation
      */
     function admin_setting($name, $visiblename, $description, $defaultsetting) {
-        $this->name           = $name;
+        $this->parse_setting_name($name);
         $this->visiblename    = $visiblename;
         $this->description    = $description;
         $this->defaultsetting = $defaultsetting;
+    }
+
+    /**
+     * Set up $this->name and possibly $this->plugin based on whether $name looks
+     * like 'settingname' or 'plugin/settingname'. Also, do some sanity checking
+     * on the names, that is, output a developer debug warning if the name
+     * contains anything other than [a-zA-Z0-9_]+.
+     *
+     * @param string $name the setting name passed in to the constructor.
+     */
+    function parse_setting_name($name) {
+        $bits = explode('/', $name);
+        if (count($bits) > 2) {
+            print_error('invalidadminsettingname', '', '', $name);
+        }
+        $this->name = array_pop($bits);
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $this->name)) {
+            print_error('invalidadminsettingname', '', '', $name);
+        }
+        if (!empty($bits)) {
+            $this->plugin = array_pop($bits);
+            if ($this->plugin === 'moodle') {
+                $this->plugin = null;
+            } else if (!preg_match('/^[a-zA-Z0-9_]+$/', $this->plugin)) {
+                print_error('invalidadminsettingname', '', '', $name);
+            }
+        }
     }
 
     function get_full_name() {
@@ -2463,8 +2507,9 @@ class admin_setting_configmultiselect extends admin_setting_configselect {
         }
 
         $defaults = array();
+        $size = min(10, count($this->choices));
         $return = '<div class="form-select"><input type="hidden" name="'.$this->get_full_name().'[xxxxx]" value="1" />'; // something must be submitted even if nothing selected
-        $return .= '<select id="'.$this->get_id().'" name="'.$this->get_full_name().'[]" size="10" multiple="multiple">';
+        $return .= '<select id="'.$this->get_id().'" name="'.$this->get_full_name().'[]" size="'.$size.'" multiple="multiple">';
         foreach ($this->choices as $key => $description) {
             if (in_array($key, $data)) {
                 $selected = 'selected="selected"';
@@ -2556,6 +2601,71 @@ class admin_setting_configtime extends admin_setting {
 }
 
 /**
+ * An admin setting for selecting one or more users, who have a particular capability
+ * in the system context. Warning, make sure the list will never be too long. There is
+ * no paging or searching of this list.
+ *
+ * To correctly get a list of users from this config setting, you need to call the
+ * get_users_from_config($CFG->mysetting, $capability); function in moodlelib.php.
+ */
+class admin_setting_users_with_capability extends admin_setting_configmultiselect {
+    var $capability;
+
+    /**
+     * Constructor.
+     *
+     * @param string $name unique ascii name, either 'mysetting' for settings that in config, or 'myplugin/mysetting' for ones in config_plugins.
+     * @param string $visiblename localised name
+     * @param string $description localised long description
+     * @param array $defaultsetting array of usernames
+     * @param string $capability string capability name.
+     */
+    function admin_setting_users_with_capability($name, $visiblename, $description, $defaultsetting, $capability) {
+        $users = get_users_by_capability(get_context_instance(CONTEXT_SYSTEM),
+                $capability, 'u.id,u.username,u.firstname,u.lastname', 'u.lastname,u.firstname');
+        $choices = array(
+            '$@NONE@$' => get_string('nobody'),
+            '$@ALL@$' => get_string('everyonewhocan', 'admin', get_capability_string($capability)),
+        );
+        foreach ($users as $user) {
+            $choices[$user->username] = fullname($user);
+        }
+        parent::admin_setting_configmultiselect($name, $visiblename, $description, $defaultsetting, $choices);
+    }
+
+    function get_defaultsetting() {
+        $this->load_choices();
+        if (empty($this->defaultsetting)) {
+            return array('$@NONE@$');
+        } else if (array_key_exists($this->defaultsetting, $this->choices)) {
+            return $this->defaultsetting;
+        } else {
+            return '';
+        }
+    }
+
+    function get_setting() {
+        $result = parent::get_setting();
+        if (empty($result)) {
+            $result = array('$@NONE@$');
+        }
+        return $result;
+    }
+
+    function write_setting($data) {
+        // If all is selected, remove any explicit options.
+        if (in_array('$@ALL@$', $data)) {
+            $data = array('$@ALL@$');
+        }
+        // None never needs to be writted to the DB.
+        if (in_array('$@NONE@$', $data)) {
+            unset($data[array_search('$@NONE@$', $data)]);
+        }
+        return parent::write_setting($data);
+    }
+}
+
+/**
  * Special checkbox for calendar - resets SESSION vars.
  */
 class admin_setting_special_adminseesall extends admin_setting_configcheckbox {
@@ -2600,6 +2710,7 @@ class admin_setting_sitesetselect extends admin_setting_configselect {
     }
 
     function write_setting($data) {
+        global $SITE;
         if (!in_array($data, array_keys($this->choices))) {
             return get_string('errorsetting', 'admin');
         }
@@ -2608,6 +2719,8 @@ class admin_setting_sitesetselect extends admin_setting_configselect {
         $temp                 = $this->name;
         $record->$temp        = $data;
         $record->timemodified = time();
+        // update $SITE
+        $SITE->{$this->name} = $data;
         return (update_record('course', $record) ? '' : get_string('errorsetting', 'admin'));
     }
 }
@@ -2707,10 +2820,13 @@ class admin_setting_sitesetcheckbox extends admin_setting_configcheckbox {
     }
 
     function write_setting($data) {
+        global $SITE;
         $record = new object();
         $record->id            = SITEID;
         $record->{$this->name} = ($data == '1' ? 1 : 0);
         $record->timemodified  = time();
+        // update $SITE
+        $SITE->{$this->name} = $data;
         return (update_record('course', $record) ? '' : get_string('errorsetting', 'admin'));
     }
 }
@@ -2738,6 +2854,7 @@ class admin_setting_sitesettext extends admin_setting_configtext {
     }
 
     function write_setting($data) {
+        global $SITE;
         $data = trim($data);
         $validated = $this->validate($data); 
         if ($validated !== true) {
@@ -2748,6 +2865,8 @@ class admin_setting_sitesettext extends admin_setting_configtext {
         $record->id            = SITEID;
         $record->{$this->name} = addslashes($data);
         $record->timemodified  = time();
+        // update $SITE
+        $SITE->{$this->name} = $data;
         return (update_record('course', $record) ? '' : get_string('dbupdatefailed', 'error'));
     }
 }
@@ -2766,11 +2885,13 @@ class admin_setting_special_frontpagedesc extends admin_setting {
     }
 
     function write_setting($data) {
+        global $SITE;
         $record = new object();
         $record->id            = SITEID;
         $record->{$this->name} = addslashes($data);
         $record->timemodified  = time();
-        return(update_record('course', $record) ? '' : get_string('errorsetting', 'admin'));
+        $SITE->{$this->name} = $data;
+        return (update_record('course', $record) ? '' : get_string('errorsetting', 'admin'));
     }
 
     function output_html($data, $query='') {
@@ -3421,6 +3542,35 @@ class admin_setting_special_coursemanager extends admin_setting_configmulticheck
         }
         return $result;
     }
+}
+
+class admin_setting_special_gradelimiting extends admin_setting_configcheckbox {
+    function admin_setting_special_gradelimiting() {
+        parent::admin_setting_configcheckbox('unlimitedgrades', get_string('unlimitedgrades', 'grades'),
+                                                  get_string('configunlimitedgrades', 'grades'), '0', '1', '0');
+    }
+
+    function regrade_all() {
+        global $CFG;
+        require_once("$CFG->libdir/gradelib.php");
+        grade_force_site_regrading();
+    }
+
+    function write_setting($data) {
+        $previous = $this->get_setting();
+
+        if ($previous === null) {
+            if ($data) {
+                $this->regrade_all();
+            }
+        } else {
+            if ($data != $previous) {
+                $this->regrade_all();
+            }
+        }
+        return ($this->config_write($this->name, $data) ? '' : get_string('errorsetting', 'admin'));
+    }
+
 }
 
 /**
@@ -4107,8 +4257,13 @@ class admin_setting_managefilters extends admin_setting {
  * checks specified in page definition.
  * This function must be called on each admin page before other code.
  * @param string $section name of page
+ * @param string $extrabutton extra HTML that is added after the blocks editing on/off button.
+ * @param string $extraurlparams an array paramname => paramvalue, or parameters that need to be
+ *      added to the turn blocks editing on/off form, so this page reloads correctly.
+ * @param string $actualurl if the actual page being viewed is not the normal one for this
+ *      page (e.g. admin/roles/allowassin.php, instead of admin/roles/manage.php, you can pass the alternate URL here.
  */
-function admin_externalpage_setup($section) {
+function admin_externalpage_setup($section, $extrabutton='', $extraurlparams=array(), $actualurl='') {
 
     global $CFG, $PAGE, $USER;
     require_once($CFG->libdir.'/blocklib.php');
@@ -4138,6 +4293,8 @@ function admin_externalpage_setup($section) {
     page_map_class(PAGE_ADMIN, 'page_admin');
     $PAGE = page_create_object(PAGE_ADMIN, 0); // there must be any constant id number
     $PAGE->init_extra($section); // hack alert!
+    $PAGE->set_extra_button($extrabutton);
+    $PAGE->set_extra_url_params($extraurlparams, $actualurl);
 
     $adminediting = optional_param('adminedit', -1, PARAM_BOOL);
 
@@ -4316,12 +4473,19 @@ function &admin_get_root($reload=false, $requirefulltree=true) {
 
         // now we process all other files in admin/settings to build the admin tree
         foreach (glob($CFG->dirroot.'/'.$CFG->admin.'/settings/*.php') as $file) {
-            if ($file != $CFG->dirroot.'/'.$CFG->admin.'/settings/top.php') {
-                include($file);
+            if ($file == $CFG->dirroot.'/'.$CFG->admin.'/settings/top.php') {
+                continue;
             }
+            if ($file == $CFG->dirroot.'/'.$CFG->admin.'/settings/plugins.php') {
+                // plugins are loaded last - they may insert pages anywhere
+                continue;
+            }
+            include($file);
         }
+        include($CFG->dirroot.'/'.$CFG->admin.'/settings/plugins.php');
+
         if (file_exists($CFG->dirroot.'/local/settings.php')) {
-            include_once($CFG->dirroot.'/local/settings.php');
+            include($CFG->dirroot.'/local/settings.php');
         }
     }
 
@@ -4716,7 +4880,7 @@ function db_replace($search, $replace) {
             foreach ($columns as $column => $data) {
                 if (in_array($data->type, array('text','mediumtext','longtext','varchar'))) {  // Text stuff only
                     $db->debug = true;
-                    execute_sql("UPDATE $table SET $column = REPLACE($column, '$search', '$replace');");
+                    execute_sql("UPDATE $table SET $column = REPLACE($column, '$search', '$replace')");
                     $db->debug = false;
                 }
             }

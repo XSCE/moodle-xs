@@ -44,11 +44,10 @@
         $course->fullname  = $course_stub->coursename;
     }
 
-    require_login($course->id);
-
+    require_login($course);
     $context = get_context_instance(CONTEXT_COURSE, $course->id);
 
-    require_capability('moodle/site:viewreports', $context);
+    require_capability('coursereport/log:view', $context);
 
     add_to_log($course->id, "course", "report log", "report/log/index.php?id=$course->id", $course->id);
 
@@ -137,14 +136,6 @@
         print_heading(get_string('chooselogs') .':');
 
         print_log_selector_form($course, $user, $date, $modname, $modid, $modaction, $group, $showcourses, $showusers, $logformat);
-
-        echo '<br />';
-        print_heading(get_string('chooselivelogs') .':');
-
-        echo '<center><h3>';
-        link_to_popup_window('/course/report/log/live.php?id='. $course->id,'livelog', get_string('livelogs'), 500, 800);
-        echo '</h3></center>';
-
     }
 
     print_footer($course);
