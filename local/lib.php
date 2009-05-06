@@ -66,7 +66,7 @@ function timestamp_to_elapsed_string($from_time, $to_time = 0, $include_seconds 
  * the tempfile (caching, removal, etc).
  *
  */
-function make_journal_entry_bundle($dspath, $uid) {
+function make_journal_entry_bundle($uid, $fpath, $mdpath, $prevpath=null) {
 
     // We use /var/tmp as we will store larger
     // files than what /tmp may be prepared to
@@ -79,12 +79,12 @@ function make_journal_entry_bundle($dspath, $uid) {
         mdie("cannot open <$filepath>\n");
     }
     // Main file
-    $zip->addFile("$dspath/$uid", "$uid/$uid")
-        || mdie("Error adding file $dspath/$uid");
-    $zip->addFile("$dspath/$uid.metadata", "$uid/_metadata.json")
+    $zip->addFile("$fpath", "$uid/$uid")
+        || mdie("Error adding file $fpath");
+    $zip->addFile("$mdpath", "$uid/_metadata.json")
         || mdie("Error adding metadata");
-    if (file_exists("$dspath/preview/$uid")) {
-        $zip->addFile("$dspath/preview/$uid", "$uid/preview/$uid")
+    if ($prevpath !== null && file_exists("$prevpath")) {
+        $zip->addFile("$prevpath", "$uid/preview/$uid")
             || mdie("Error adding preview");
     }
     $zip->close()
