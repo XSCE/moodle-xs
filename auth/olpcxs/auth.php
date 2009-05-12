@@ -154,12 +154,12 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             $user->picture      = 1;
 
             // username & fqdn  won't change over the lifetime of the account
-            $user->username     = addslashes($extuser['serial']);
-            $user->email        = addslashes($extuser['serial']) . '@' . $XS_FQDN;
+            $user->username     = $extuser['serial'];
+            $user->email        = $extuser['serial']. '@' . $XS_FQDN;
 
             // we'll accept changes in nickname, and the pkey_hash
-            $user->firstname    = addslashes($extuser['nickname']);
-            $user->idnumber     = addslashes($pkey_hash);
+            $user->firstname    = $extuser['nickname'];
+            $user->idnumber     = $pkey_hash;
             $user->modified	= time();
 
             $uid = insert_record('user', addslashes_object($user));
