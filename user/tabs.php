@@ -258,7 +258,8 @@
 
     /// this needs permission checkings
 
-
+    // Hide user-to-user role-assignment for XS
+    /*
     if (!empty($showroles) and !empty($user)) { // this variable controls whether this roles is showed, or not, so only user/view page should set this flag
         $usercontext = get_context_instance(CONTEXT_USER, $user->id);
         if (has_capability('moodle/role:assign',$usercontext)) {
@@ -278,6 +279,8 @@
             }
         }
     }
+    */
+
 /// Add second row to display if there is one
 
     if (!empty($secondrow)) {
