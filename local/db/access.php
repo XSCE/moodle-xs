@@ -56,6 +56,16 @@
 
 
 $local_capabilities = array(
+    'moodle/local:xsconfig'
+    => array(	     
+	     'riskbitmask' => RISK_CONFIG,
+	     'captype' => 'write',
+	     'contextlevel' => CONTEXT_SYSTEM,
+	     'legacy'
+	     => array(
+		      'coursecreator' => CAP_ALLOW
+		      )
+		     ),
     'moodle/local:editaliases'
     => array(	     
 	     'riskbitmask' => RISK_PERSONAL,

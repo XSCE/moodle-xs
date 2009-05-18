@@ -78,10 +78,10 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             } else {
                 $first = true;
             }
+            $sitectx   = get_context_instance(CONTEXT_SYSTEM);
             if ($first) {
                 $ccrole	 = get_record('role', 'shortname', 'coursecreator');
                 $etrole	 = get_record('role', 'shortname', 'editingteacher');
-                $sitectx   = get_context_instance(CONTEXT_SYSTEM);
                 $sitecoursectx = get_record('context',
                                             'contextlevel', CONTEXT_COURSE,
                                             'instanceid', SITEID);
@@ -89,11 +89,13 @@ class auth_plugin_olpcxs extends auth_plugin_base {
                 role_assign($ccrole->id, $user->id, 0, $sitectx->id);
                 role_assign($ccrole->id, $user->id, 0, $sitecoursectx->id);
                 role_assign($etrole->id, $user->id, 0, $sitecoursectx->id);
-
-                // tweak coursecreator to be able to assign course-creator roles systemwide...
-                assign_capability('moodle/role:assign', CAP_ALLOW, $ccrole->id, $sitectx->id, false);
-                if (!get_record('role_allow_assign', 'roleid', $ccrole->id, 'allowassign', $ccrole->id)) {
-                    allow_assign($ccrole->id,$ccrole->id);
+                $this->fixup_roles();
+            } else {
+                // not first, if its a coursecreator
+                // ensure the role is healthy
+                $roles = $this->get_user_roles_in_context($user->id, $sitectx);
+                if (in_array('coursecreator', $roles)) {
+                    $this->fixup_roles();
                 }
             }
 
@@ -128,6 +130,45 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         }
 	}
 
+    function fixup_roles() {
+        
+        $sitectx   = get_context_instance(CONTEXT_SYSTEM);
+
+        // course creator
+        $ccrole	 = get_record('role', 'shortname', 'coursecreator');
+
+        $ccaps = array('moodle/role:assign',
+                        'moodle/user:viewuseractivitiesreport',
+                        'moodle/user:editprofile',
+                        'moodle/user:update',
+                        'moodle/user:delete',
+                        'moodle/user:create' 
+                        );
+        foreach ($ccaps as $cap) {
+            assign_capability($cap, CAP_ALLOW, $ccrole->id, $sitectx->id, false);
+        }
+        // tweak coursecreator to be able to assign course-creator roles systemwide...
+        if (!get_record('role_allow_assign', 'roleid', $ccrole->id, 'allowassign', $ccrole->id)) {
+            allow_assign($ccrole->id,$ccrole->id);
+        }
+    }
+
+    // inspired by the function w same name in accesslib,
+    // but returning a more useful array of role strings-
+    function get_user_roles_in_context($userid, $context, $view=true){
+        global $CFG, $USER;
+
+        $rolestring = '';
+        $SQL = 'select ra.id,r.shortname from '.$CFG->prefix.'role_assignments ra, '.$CFG->prefix.'role r where ra.userid='.$userid.' and ra.contextid='.$context->id.' and ra.roleid = r.id';
+        $rolenames = array();
+        if ($roles = get_records_sql($SQL)) {
+            foreach ($roles as $userrole) {
+                $rolenames[] = $userrole->shortname;
+            }
+        }
+        return $rolenames;
+    }
+
 	function create_update_user($extuser) {
         global $CFG;
         global $XS_FQDN;
@@ -154,12 +195,12 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             $user->picture      = 1;
 
             // username & fqdn  won't change over the lifetime of the account
-            $user->username     = addslashes($extuser['serial']);
-            $user->email        = addslashes($extuser['serial']) . '@' . $XS_FQDN;
+            $user->username     = $extuser['serial'];
+            $user->email        = $extuser['serial']. '@' . $XS_FQDN;
 
             // we'll accept changes in nickname, and the pkey_hash
-            $user->firstname    = addslashes($extuser['nickname']);
-            $user->idnumber     = addslashes($pkey_hash);
+            $user->firstname    = $extuser['nickname'];
+            $user->idnumber     = $pkey_hash;
             $user->modified	= time();
 
             $uid = insert_record('user', addslashes_object($user));
