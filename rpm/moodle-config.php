@@ -63,7 +63,7 @@ $CFG->cronclionly=1;
 // Sysconfig
 $CFG->zip='/usr/bin/zip';
 $CFG->unzip='/usr/bin/unzip';
-$CFG->du='/usr/bin/du';
+$CFG->pathtodu='/usr/bin/du';
 $CFG->aspellpath='/usr/bin/aspell';
 
 
