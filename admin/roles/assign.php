@@ -116,6 +116,10 @@
         $fullname = fullname($user, has_capability('moodle/site:viewfullnames', $context));
     }
 
+    $canunassignself = true;
+    if ($context->contextlevel==CONTEXT_SYSTEM && !has_capability('moodle/role:unassignself', $context)) {
+        $canunassignself = false;
+    }
 
 /// Print the header and tabs
 
@@ -227,7 +231,13 @@
             foreach ($frm->removeselect as $removeuser) {
                 $removeuser = clean_param($removeuser, PARAM_INT);
 
-                if ($topleveladmin && ($removeuser == $USER->id)) {   // Prevent unassigning oneself from being admin
+                if ($topleveladmin && ($removeuser == $USER->id)) {
+                    // Prevent unassigning oneself from being admin
+                    continue;
+                }
+
+                if (!$canunassignself && $removeuser == $USER->id) {
+                    // prevent unassigning oneself if we are not allowed
                     continue;
                 }
 

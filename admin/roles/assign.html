@@ -28,7 +28,11 @@
                 } else {
                     $hidden="";
                 }
-                echo "<option value=\"$contextuser->id\">".$fullname.", ".$contextuser->email.$hidden."</option>\n";
+                if (!$canunassignself && ($contextuser->id == $USER->id)) {
+                    echo "<option value=\"$contextuser->id\" disabled=\"true\">".$fullname.", ".$contextuser->email.$hidden."</option>\n";
+                } else {
+                    echo "<option value=\"$contextuser->id\">".$fullname.", ".$contextuser->email.$hidden."</option>\n";
+                }
                 $i++;    
             }
             if ($i==0) {
