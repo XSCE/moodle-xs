@@ -107,7 +107,6 @@ function availableusers_addregdate($urs) {
 
     $results = array();
     while ($user = rs_fetch_next_record($urs)) {
-        error_log(print_r($user,1));        
         if (!empty($rusers[ $user->username ])) {
             $user->lastmodified = $rusers[$user->username];
         } else {
@@ -115,15 +114,15 @@ function availableusers_addregdate($urs) {
         }
         $results[] = $user;
     }
-    //usort($results, 'availableusers_addregdate_sorter');
+    usort($results, 'availableusers_addregdate_sorter');
 
     return $results;
 }
 
 // my kingdom for a lambda
 function availableusers_addregdate_sorter($a, $b) {
-    $av = array_key_exists('lastmodified', $a) ? $a['lastmodified'] : '';
-    $bv = array_key_exists('lastmodified', $b) ? $b['lastmodified'] : '';
+    $av = property_exists($a, 'lastmodified') ? $a->lastmodified : '';
+    $bv = property_exists($b, 'lastmodified') ? $b->lastmodified : '';
 
     return strcmp($av, $bv);
 }
