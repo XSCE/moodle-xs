@@ -33,12 +33,22 @@ RETVAL=0
 start() {
 	
         if [ -e /etc/moodle/needsupgrade ]; then
+
                 echo "Moodle installation or upgrade required..."
 		pushd /var/www/moodle/web
+
                 # Attempt to create an 'apache' user in PostgreSQL
                 su  -c 'createuser -SRD apache' postgres || echo 'Could not create apache user (exists already?)'
+
                 # attempt to create a database
                 su -c 'createdb -O apache -E utf8 moodle-xs' postgres || echo 'Could not create moodle-xs DB (exists already?)'
+
+		echo "["`date`"]" Start install / upgrade >> /var/log/moodle-instupg.log 
+
+		# Before install/upgrade, enable the admin user
+		# (will DTRT for upgrades, fail silently in fresh installs)
+		( sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-enable.php 2>&1 ) >> /var/log/moodle-instupg.log 
+
 		# Install/upgrade moodle DB schema
 		( sudo -u apache /usr/bin/php /var/www/moodle/web/admin/cliupgrade.php \
 		    --agreelicense=yes --confirmrelease=yes \
@@ -48,12 +58,16 @@ start() {
 		    --adminfirstname=Admin --adminlastname=OLPC \
 		    --adminusername=admin --adminpassword=`cat /etc/moodle/adminpw` \
 		    --adminemail=admin@localhost \
-		    --verbose=0 --interactivelevel=0 2>&1 ) >> /var/log/moodle-instupg.log 
+		    --verbose=0 --interactivelevel=0 2>&1 && \
+                    sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-disable.php 2>&1 ) \
+		    >> /var/log/moodle-instupg.log 
 		if [ $? = 0 ]; then
 		    success
+		    echo "["`date`"]" Finished install / upgrade - Success >> /var/log/moodle-instupg.log 
 		    rm -f /etc/moodle/needsupgrade
 		else
-		    failure
+		    failur
+		    echo "["`date`"]" Finished install / upgrade - Failure >> /var/log/moodle-instupg.log 
 		    exit 1
 		fi
 		popd
