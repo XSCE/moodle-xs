@@ -30,9 +30,9 @@
 /// Make sure the current user is allowed to see this user
 
     if (empty($USER->id)) {
-       $currentuser = false;
+        $currentuser = false;
     } else {
-       $currentuser = ($user->id == $USER->id);
+        $currentuser = ($user->id == $USER->id);
     }
 
     if ($course->id == SITEID) {
@@ -52,34 +52,34 @@
 /// If the user being shown is not ourselves, then make sure we are allowed to see them!
 
     if (!$currentuser) {
-      // check capabilities
-      if (!has_capability('moodle/local:viewbackup', $systemcontext) && 
-	  !has_capability('moodle/local:viewbackup', $usercontext)) {
-	print_error('cannotviewbackup');
-      }
+        // check capabilities
+        if (!has_capability('moodle/local:viewbackup', $systemcontext) && 
+            !has_capability('moodle/local:viewbackup', $usercontext)) {
+            print_error('cannotviewbackup');
+        }
     }
 
 // if the user has an olpcxs_alias preference
 // we use it to validate the $aliasuserid param --
     $useralias_pref = (int)get_user_preferences('olpcxs_alias', 0, $user->id);
     if ($useralias_pref > 0) {
-      $aliasuser = get_record('user', 'id', $useralias_pref);
-      if ( $useralias_pref !== (int)$aliasuserid) {
-	$aliasuserid = null;
+        $aliasuser = get_record('user', 'id', $useralias_pref);
+        if ( $useralias_pref !== (int)$aliasuserid) {
+            $aliasuserid = null;
       }
     } else {
-      $aliasuser = null;
-      $aliasuserid = null;
+        $aliasuser = null;
+        $aliasuserid = null;
     }
 
 /// Serve the file to restore if we have it
     if (!empty($restorefile) && !empty($snapshot)) {
-      if ($aliasuserid) {
-	ds_serve_file($aliasuser, $snapshot, $restorefile);
-      } else {
-	ds_serve_file($user, $snapshot, $restorefile);
-      }
-      exit;
+        if ($aliasuserid) {
+            ds_serve_file($aliasuser, $snapshot, $restorefile);
+        } else {
+            ds_serve_file($user, $snapshot, $restorefile);
+        }
+        exit;
     }
 
 /// We've established they can see the user's name at least, so what about the rest?
@@ -92,15 +92,16 @@
                  $navigation, "", "", true, "&nbsp;", navmenu($course));
 
     if ($user->deleted) {
-      print_error('userdeleted');
+        print_error('userdeleted');
     }
     if (is_mnet_remote_user($user)) {
-      print_error('mnetusernobackup');
+        print_error('mnetusernobackup');
     }
 
 /// OK, security out the way, now we are showing the user
 
-    add_to_log($course->id, "user", "viewbackup", "dsbackup.php?id=$user->id&course=$course->id", "$user->id");
+    add_to_log($course->id, "user", "viewbackup",
+               "dsbackup.php?id=$user->id&course=$course->id", "$user->id");
 
 /// Base dir for this user
     if ($user->auth != 'olpcxs') {
@@ -108,7 +109,7 @@
     }
     $basedir = $CFG->dsbackupdir . '/' . $user->username;
     if (!file_exists($basedir)) {
-      print_error('nobackupsforuser', 'olpcxs');
+        print_error('nobackupsforuser', 'olpcxs');
     }
 
 
@@ -129,23 +130,23 @@
     echo '<tr>';
     echo '<td class="content">';
     if ($snapshotlist) {
-      if ($aliasuser) {
-	ds_print_snapshotlist($user, $aliasuser, $course);
-	echo '</td><td>';
-      }
-      ds_print_snapshotlist($user, null, $course);
+        if ($aliasuser) {
+            ds_print_snapshotlist($user, $aliasuser, $course);
+            echo '</td><td>';
+        }
+        ds_print_snapshotlist($user, null, $course);
     } elseif ($latest) {
-      if ($aliasuser) {
-	ds_print_dir($user, $aliasuser, 'datastore-latest', $course);
-	echo '<hr />';
-      }
-      ds_print_dir($user, null,       'datastore-latest', $course);
+        if ($aliasuser) {
+            ds_print_dir($user, $aliasuser, 'datastore-latest', $course);
+            echo '<hr />';
+        }
+        ds_print_dir($user, null,       'datastore-latest', $course);
     } elseif($snapshot) {
-      if ($aliasuserid) { // requested a snapshot from the alias...
-	ds_print_dir($user, $aliasuser, $snapshot, $course);
-      } else {
-	ds_print_dir($user, null, $snapshot, $course);
-      }
+        if ($aliasuserid) { // requested a snapshot from the alias...
+            ds_print_dir($user, $aliasuser, $snapshot, $course);
+        } else {
+            ds_print_dir($user, null, $snapshot, $course);
+        }
     }
 
     echo '</td></tr></table>';
