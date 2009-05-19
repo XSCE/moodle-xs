@@ -4714,6 +4714,37 @@ function admin_output_new_settings_by_page($node) {
     return $return;
 }
 
+/*
+ * Set all 'new' settings to their defaults with
+ * no user interaction.
+ *
+ * The admin pages want to do their own capability checks
+ * so you may need to fake admin privileges.
+ *
+ * It is safe to ignore the $node parameter -- used for
+ * recursion.
+ *
+ */
+function admin_new_settings_to_default($node=null) {
+
+    if (is_null($node)) {
+        $node =& admin_get_root(true, true);
+    }
+    
+    if (is_a($node, 'admin_category')) {
+        $entries = array_keys($node->children);
+        foreach ($entries as $entry) {
+            admin_new_settings_to_default($node->children[$entry]);
+        }
+    } else if (is_a($node, 'admin_settingpage')) {
+        foreach ($node->settings as $setting) {
+            if (is_null($setting->get_setting())) {
+                $setting->write_setting($setting->get_defaultsetting());
+            }
+        }
+    }
+}
+
 /**
  * Unconditionally applies default admin settings in main config table
  * @param array $defaults array of string values
