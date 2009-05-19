@@ -1104,6 +1104,7 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     }
     upgrade_plugins('format','course/format',''); // Don't return anywhere
 
+
     /// Check for local database customisations
     /// first old *.php update and then the new upgrade.php script
     require_once("$CFG->dirroot/lib/locallib.php");
@@ -1135,10 +1136,19 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
 
     /// Check all message output plugins and upgrade if necessary
     if ( $verbose > CLI_NO ) {
-        print_heading(get_string('upgradingmessageoutputpluggin','install'),'',1);
+        print_heading(get_string('upgradingmessageoutputplugin','install'),'',1);
     }
     upgrade_plugins('message','message/output',''); // Don't return anywhere
 
+    if ( $verbose > CLI_NO ) {
+        print_heading(get_string('upgradingcoursereportplugin','install'),'',1);
+    }
+    upgrade_plugins('coursereport', 'course/report','');
+
+    if ( $verbose > CLI_NO ) {
+        print_heading(get_string('upgradingadminreportplugin','install'),'',1);
+    }
+    upgrade_plugins('report', (empty($CFG->admin) ? 'admin' : $CFG->admin) .'/report', '');
 
     /// just make sure upgrade logging is properly terminated
     upgrade_log_finish();
