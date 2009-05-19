@@ -92,4 +92,39 @@ function make_journal_entry_bundle($uid, $fpath, $mdpath, $prevpath=null) {
     return $filepath;
 }
 
+function availableusers_addregdate($urs) {
+
+    global $CFG;
+
+    $dbh = new PDO('sqlite:' . $CFG->olpcxsdb);
+    $sql = 'SELECT serial, lastmodified
+                  FROM laptops';
+    $rrs    = $dbh->query($sql);
+    $rusers = array();
+    foreach ($rrs as $idmgruser) {
+        $rusers[ $idmgruser['serial'] ] = $idmgruser['lastmodified'];
+    }
+
+    $results = array();
+    while ($user = rs_fetch_next_record($urs)) {
+        error_log(print_r($user,1));        
+        if (!empty($rusers[ $user->username ])) {
+            $user->lastmodified = $rusers[$user->username];
+        } else {
+            $user->lastmodified = '';
+        }
+        $results[] = $user;
+    }
+    //usort($results, 'availableusers_addregdate_sorter');
+
+    return $results;
+}
+
+// my kingdom for a lambda
+function availableusers_addregdate_sorter($a, $b) {
+    $av = array_key_exists('lastmodified', $a) ? $a['lastmodified'] : '';
+    $bv = array_key_exists('lastmodified', $b) ? $b['lastmodified'] : '';
+
+    return strcmp($av, $bv);
+}
 ?>

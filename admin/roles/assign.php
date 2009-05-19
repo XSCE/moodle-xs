@@ -4,6 +4,7 @@
     require_once('../../config.php');
     require_once($CFG->dirroot.'/mod/forum/lib.php');
     require_once($CFG->libdir.'/adminlib.php');
+    require_once($CFG->dirroot.'/local/lib.php');
 
     define("MAX_USERS_PER_PAGE", 5000);
     define("MAX_USERS_TO_LIST_PER_ROLE", 10);
@@ -335,7 +336,7 @@
                 if ($validroleids) {
                     $roleids =  '('.implode(',', $validroleids).')';
 
-                    $select = " SELECT u.id, u.firstname, u.lastname, u.email";
+                    $select = " SELECT u.id, u.firstname, u.lastname, u.email, u.username";
                     $countselect = "SELECT COUNT(u.id)";
                     $from   = " FROM {$CFG->prefix}user u
                                 INNER JOIN {$CFG->prefix}role_assignments ra ON ra.userid = u.id
@@ -353,9 +354,15 @@
                                     $selectsql)";
 
                     $availableusers = get_recordset_sql($select . $from . $where . $selectsql . $excsql);
+
                 }
 
                 $usercount =  $availableusers->_numOfRows;
+
+                // XS-specific...
+                $availableusers = availableusers_addregdate($availableusers);
+
+
             }
 
         } else {
@@ -369,7 +376,7 @@
 
             /// MDL-11111 do not include user already assigned this role in this context as available users
             /// so that the number of available users is right and we save time looping later
-            $availableusers = get_recordset_sql('SELECT id, firstname, lastname, email
+            $availableusers = get_recordset_sql('SELECT id, firstname, lastname, email, username
                                                 FROM '.$CFG->prefix.'user
                                                 WHERE '.$select.'
                                                 AND id NOT IN (
@@ -382,7 +389,11 @@
                                                     '.$selectsql.')
                                                 ORDER BY lastname ASC, firstname ASC');
 
-            $usercount = $availableusers->_numOfRows;         
+            $usercount = $availableusers->_numOfRows;
+
+            // XS-specific...
+            $availableusers = availableusers_addregdate($availableusers);
+
         }
 
         echo '<div class="selector">';
