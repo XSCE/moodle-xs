@@ -1322,11 +1322,19 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
 
         create_admin_user($user);
     }
+
+    // Set all the settings to their defaults. We need
+    // to fake admin rights for this :-(
+    $admuser = get_admin();
+    $USER = get_complete_user_data('id', $admuser->id);
+    complete_user_login($USER);
+    admin_new_settings_to_default();
+
     if ( $verbose > CLI_NO ) {
         print_newline();
         console_write(STDOUT,'upgradingcompleted');
     }
 }
 
-
 ?>
+ 
