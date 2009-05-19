@@ -207,7 +207,6 @@ function ds_readdir_v1($dspath) {
 
             // note that we get it as an array, as some properties
             // have funny names...
-            error_log("read metadata...");
             $md = ds_readmetadata_v1($mdpath);
 
             if (!is_array($md)) {

@@ -95,7 +95,7 @@
         print_error('userdeleted');
     }
     if (is_mnet_remote_user($user)) {
-        print_error('mnetusernobackup');
+        print_error('error_usertypenobackup', 'olpcxs');
     }
 
 /// OK, security out the way, now we are showing the user
@@ -105,11 +105,11 @@
 
 /// Base dir for this user
     if ($user->auth != 'olpcxs') {
-        print_error('nobackupsforuser');
+        print_error('error_usertypenobackup', 'olpcxs');
     }
     $basedir = $CFG->dsbackupdir . '/' . $user->username;
-    if (!file_exists($basedir)) {
-        print_error('nobackupsforuser', 'olpcxs');
+    if (!file_exists($basedir) || !file_exists($basedir.'/datastore-latest')) {
+        print_error('error_nobackupsforuser', 'olpcxs');
     }
 
 

@@ -19,4 +19,6 @@ $string['aliases_explanation'] = 'When an XO laptop has been replaced, use this 
 $string['presence']='Presence service';
 $string['configpresencebycourse']='Instead of seeing all users, users will see only participants in the courses they are in. This is useful for locations with large numbers of users.';
 $string['presencebycourse']='Split by course';
+$string['error_usertypenobackup']='This type of user account does not support backups';
+$string['error_nobackupsforuser']='This user has no backup data yet.';
 ?>
