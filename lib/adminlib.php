@@ -2627,8 +2627,10 @@ class admin_setting_users_with_capability extends admin_setting_configmultiselec
             '$@NONE@$' => get_string('nobody'),
             '$@ALL@$' => get_string('everyonewhocan', 'admin', get_capability_string($capability)),
         );
-        foreach ($users as $user) {
-            $choices[$user->username] = fullname($user);
+        if ($users) {
+            foreach ($users as $user) {
+                $choices[$user->username] = fullname($user);
+            }
         }
         parent::admin_setting_configmultiselect($name, $visiblename, $description, $defaultsetting, $choices);
     }
