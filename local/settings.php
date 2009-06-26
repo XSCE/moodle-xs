@@ -13,6 +13,11 @@ if (has_capability('moodle/local:xsconfig', $systemcontext)) {
                                                 get_string('configpresencebycourse', 'olpcxs'),
                                                 0));
     $ADMIN->add('courses', $temp);
+
+    $temp = new admin_externalpage('antitheft', get_string('antitheft', 'olpcxs'),
+                                   "{$CFG->wwwroot}/{$CFG->admin}/antitheft.php",
+                                  'moodle/local:xsconfig');
+    $ADMIN->add('users', $temp);
 }
 
 ?>

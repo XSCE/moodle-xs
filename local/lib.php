@@ -126,4 +126,13 @@ function availableusers_addregdate_sorter($a, $b) {
 
     return strcmp($av, $bv);
 }
+
+function serve_rescue_leases() {
+    header('Content-Disposition: attachment; filename="leases.sig"');
+    // text/plain is problematic on the XO for a file
+    // we want to be treated as opaque content. So...
+    header('Content-Type: application/x-forcedownload');
+    passthru('/usr/bin/xs-activation-rescueleases.py');
+    exit(1);
+}
 ?>

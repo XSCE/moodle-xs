@@ -1,0 +1,87 @@
+<?php
+admin_externalpage_print_header();
+
+echo '<h1>' . get_string('antitheftcontrols', 'olpcxs') . '</h1>';
+print_box_start('generalbox');
+echo get_string('antitheftcontrols_description', 'olpcxs');
+echo '<ul>';
+echo '<li><a href="antitheft.php/leases.sig?rescueleases=1&amp;sesskey='.sesskey().'">'. get_string('rescueleases', 'olpcxs') . '</a>';
+echo '</li>';
+echo '</ul>';
+print_box_end();
+?>
+<div>
+<input type="hidden" name="sesskey" value="<?php echo $USER->sesskey ?>" />
+<table cellpadding="5" cellspacing="1" class="flexible generaltable boxaligncenter generalbox" width="80%">
+<tr>
+<th class="header c0" ></th>
+<th class="header c0" ><?php echo get_string('user'); ?></th>
+<th class="header c0" ><?php echo get_string('serialnum', 'olpcxs'); ?></th>
+<th class="header c0" ><?php echo get_string('lastlogin'); ?></th>
+<th class="header c0" ><?php echo get_string('leasegiven', 'olpcxs'); ?></th>
+<th class="header c0" ><?php echo get_string('notes', 'notes'); ?></th>
+</tr>
+<?php
+$now = time();
+$ago = get_string ('ago', 'timedistances');
+while ($user = rs_fetch_next_record($users)) {
+      if (!empty($user->timestolen)) {
+          $cssstolen='class="stolen"';
+      } else {
+          $cssstolen='';
+      }
+      echo "<tr $cssstolen ><td  class=\"cell c0\" >";
+      print_user_picture($user, SITEID, $user->picture, false);
+      echo '</td><td class="cell c0" >';
+      $profilelink = '<strong><a href="'.$CFG->wwwroot.'/user/view.php?id='.$user->id.'&amp;course='.SITEID.'">'.fullname($user).'</a></strong>';
+      if (!empty($user->timestolen)) {
+          echo  '<strike>' . $profilelink .  '</strike>' ;
+      } else {
+          echo $profilelink;
+      }
+      echo '</td><td class="cell c0" >';
+      p($user->serialnum);
+      echo '</td><td class="cell c0" >';
+      if (!empty($user->lastlogin)) {
+          echo p(timestamp_to_elapsed_string($user->lastlogin - $now)) . " $ago";
+      }
+      echo '</td><td class="cell c0" >';
+      if (!empty($user->timeleasegiven)) {
+          echo p(timestamp_to_elapsed_string($user->timeleasegiven - $now)) . " $ago";
+      }
+      echo '</td><td class="cell c0" ><ul>';
+      if (!empty($user->timestolen)) {
+	if (!empty($user->timekilled)) {
+          echo '<li>' . get_string('servedstopsignal', 'olpcxs')
+              . ' ' . s(timestamp_to_elapsed_string($user->timekilled - $now)) 
+              . ' ' . $ago. '.</li>';
+	} else {
+	  echo '<li>' . get_string('stolen', 'olpcxs').'</li>';
+        }
+      } else {
+          echo '<li>';
+          print_single_button("$CFG->wwwroot/$CFG->admin/antitheft.php",
+                              array('serialnum' => $user->serialnum,
+                                    'sesskey'   => sesskey() ),
+                              get_string('markstolen', 'olpcxs'), 'post');
+          echo '</li>';
+      }
+      if (!empty($user->alias)) {
+          $aliasuser = get_record('user', 'id', $user->alias);
+          if ($aliasuser) {
+              $profilelink = '<strong><a href="'.$CFG->wwwroot.'/user/view.php?id='
+                  .$aliasuser->id.'&amp;course='.SITEID.'">'
+                  .fullname($aliasuser).'</a></strong>';
+              echo '<li>' . get_string('aliasedto', 'olpcxs')
+                  . ' ' . $profilelink . '.</li>';
+          }
+      }
+      echo '</ul></td></tr>';
+ }
+ ?>
+</table>
+</div>
+<?php
+
+admin_externalpage_print_footer();
+?>

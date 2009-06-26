@@ -21,4 +21,15 @@ $string['configpresencebycourse']='Instead of seeing all users, users will see o
 $string['presencebycourse']='Split by course';
 $string['error_usertypenobackup']='This type of user account does not support backups';
 $string['error_nobackupsforuser']='This user has no backup data yet.';
+$string['antitheft']='Antitheft';
+$string['servedstopsignal']='Served the laptop a STOP signal';
+$string['aliasedto']='Aliased to';
+$string['leasegiven']='Lease given';
+$string['serialnum'] = 'Serial number';
+$string['markstolen'] = 'Mark as stolen';
+$string['stolen'] = 'Stolen';
+$string['rescueleases'] = 'Get a \"rescue\" leases.sig file.';
+$string['antitheftcontrols'] = 'Antitheft controls';
+$string['antitheftcontrols_description'] = '<p>This page lists the registered XOs and their status with the antitheft system.</p><p>It also offers a \"rescue\" leases.sig that can help recovering laptops quickly after a school or classroom-wide problem, and can re-activate laptops that have problems with wireless.</p><p>In case a laptop has been stolen, you must mark it in this page as stolen so that the antitheft system shuts it down.</p><p>All actions on this page are logged.</p>';
+
 ?>

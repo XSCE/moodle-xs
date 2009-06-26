@@ -41,6 +41,10 @@ background-color:transparent;
 #footer{ /* the whole footer */
 }
 
+.stolen{ /* an XO or account related to an XO that has been stolen */
+    /* TODO: add some nice highlighting */
+}
+
 .sitelink{ /* for the site, this puts the Moodle logo down at the bottom */
 /* display:none; */
 }
