@@ -31,7 +31,7 @@ class auth_plugin_olpcxs extends auth_plugin_base {
 		$this->config = get_config('auth/olpcxs');
 	}
 
-	function loginpage_hook(){
+	function loginpage_hook() {
         global $CFG;
         global $USER;
         global $SESSION;
@@ -68,35 +68,12 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             //
             // we have the user acct, complete login dance now
             //
+            $this->maybe_assign_coursecreator($user);
 
-            // is this our first user to ever login?
-            $first = get_field_sql("SELECT COUNT(id)
-				    FROM {$CFG->prefix}user
-			            WHERE auth='olpcxs' AND lastlogin > 0 AND id != {$user->id}");
-            if ((int)$first > 0) {
-                $first = false;
-            } else {
-                $first = true;
-            }
             $sitectx   = get_context_instance(CONTEXT_SYSTEM);
-            if ($first) {
-                $ccrole	 = get_record('role', 'shortname', 'coursecreator');
-                $etrole	 = get_record('role', 'shortname', 'editingteacher');
-                $sitecoursectx = get_record('context',
-                                            'contextlevel', CONTEXT_COURSE,
-                                            'instanceid', SITEID);
-
-                role_assign($ccrole->id, $user->id, 0, $sitectx->id);
-                role_assign($ccrole->id, $user->id, 0, $sitecoursectx->id);
-                role_assign($etrole->id, $user->id, 0, $sitecoursectx->id);
+            $roles = $this->get_user_roles_in_context($user->id, $sitectx);
+            if (in_array('coursecreator', $roles)) {
                 $this->fixup_roles();
-            } else {
-                // not first, if its a coursecreator
-                // ensure the role is healthy
-                $roles = $this->get_user_roles_in_context($user->id, $sitectx);
-                if (in_array('coursecreator', $roles)) {
-                    $this->fixup_roles();
-                }
             }
 
             // icon for the user - we cannot do this in
@@ -129,6 +106,83 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             redirect($urltogo);
         }
 	}
+
+    /* coursecreators are set in two possible ways
+     * 
+     * - By default, the first user to login to Moodle successfully
+     *   is a coursecreator. This works well for low-maintenance small
+     *   deployments.
+     *
+     * - If /etc/moodle/coursecreators exists, then it is assumed to be
+     *   a newline-delimited file with the serial numbers (which are the
+     *   usernames, in moodle-land).
+     *
+     */
+    function maybe_assign_coursecreator($user) {
+
+        $sitectx   = get_context_instance(CONTEXT_SYSTEM);
+
+        $ccrole	 = get_record('role', 'shortname', 'coursecreator');
+        $etrole	 = get_record('role', 'shortname', 'editingteacher');
+        $sitecoursectx = get_record('context',
+                                    'contextlevel', CONTEXT_COURSE,
+                                    'instanceid', SITEID);
+
+        $ccfpath = '/etc/moodle/coursecreators';
+        if (file_exists($ccfpath)) {
+            $iscc = $this->is_coursecreator_fromfile($user, $ccfpath);
+        } else {
+            $iscc = $this->is_coursecreator_firstcome($ccrole);
+        }
+
+        if ($iscc) {
+            // role_assign() checks for existing ra
+            role_assign($ccrole->id, $user->id, 0, $sitectx->id);
+            role_assign($ccrole->id, $user->id, 0, $sitecoursectx->id);
+            role_assign($etrole->id, $user->id, 0, $sitecoursectx->id);
+            return true;
+        }
+        return false;
+    }
+
+    function is_coursecreator_firstcome($ccrole) {
+
+        global $CFG;
+
+        $sitectx   = get_context_instance(CONTEXT_SYSTEM);
+
+        // is this our first user to ever login?
+        $creatorcount = get_field_sql("SELECT COUNT(u.id)
+				                       FROM {$CFG->prefix}user u
+                                       JOIN {$CFG->prefix}role_assignments ra
+                                             ON ra.userid = u.id
+			                           WHERE u.auth='olpcxs'
+                                             AND ra.contextid = {$sitectx->id} AND ra.roleid = {$ccrole->id}");
+        if ($creatorcount === false) {
+            // handle error differently from int 0
+            return false;
+        }
+        if ((int)$creatorcount > 0) {
+            return false;
+        } else {
+            error_log("make me cc");
+            return true;
+        }
+    }
+
+    function is_coursecreator_fromfile($user, $fpath) {
+        $handle = fopen($fpath, 'r');
+        if ($handle) {
+            while (!feof($handle)) {
+                $buffer = trim(fgets($handle, 4096));
+                if ($user->username === $buffer) {
+                    return true;
+                }
+            }
+            fclose($handle);
+        }
+        return false;
+    }
 
     function fixup_roles() {
         
