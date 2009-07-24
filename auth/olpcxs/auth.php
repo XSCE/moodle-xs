@@ -165,7 +165,6 @@ class auth_plugin_olpcxs extends auth_plugin_base {
         if ((int)$creatorcount > 0) {
             return false;
         } else {
-            error_log("make me cc");
             return true;
         }
     }
