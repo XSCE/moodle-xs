@@ -237,6 +237,26 @@
                     continue;
                 }
 
+                if ($removeuser == $USER->id) {
+                    // OLPCXS - prevent unassignself if we're last CC
+                    $roleshortname = get_field('role', 'shortname', 'id', $roleid);
+                    if ($roleshortname === 'coursecreator') {
+                        $sitectx   = get_context_instance(CONTEXT_SYSTEM);
+                        $creatorcount = get_field_sql("SELECT COUNT(u.id)
+  				                                       FROM {$CFG->prefix}user u
+                                                       JOIN {$CFG->prefix}role_assignments ra
+                                                            ON ra.userid = u.id
+			                                           WHERE u.auth='olpcxs'
+                                                             AND ra.contextid = {$sitectx->id} AND ra.roleid = {$roleid}");
+                        if ($creatorcount === false) {
+                            continue;
+                        }
+                        if ((int)$creatorcount < 2) {
+                            continue;
+                        }
+                    }
+                }
+
                 if (!$canunassignself && $removeuser == $USER->id) {
                     // prevent unassigning oneself if we are not allowed
                     continue;
