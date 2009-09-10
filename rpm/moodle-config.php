@@ -52,6 +52,7 @@ $CFG->registerauth='';
 // OLPCXS
 $CFG->auth='olpcxs';
 $CFG->olpcxsdb='/home/idmgr/identity.db';
+$CFG->theme='xo';
 
 // Frontpage
 $CFG->frontpage='0,1';
