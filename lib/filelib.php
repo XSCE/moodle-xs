@@ -474,6 +474,15 @@ function get_mimetypes_array() {
         'xlam' => array ('type'=>'application/vnd.ms-excel.addin.macroEnabled.12', 'icon'=>'xlam.gif'),
 
         'xml'  => array ('type'=>'application/xml', 'icon'=>'xml.gif'),
+        'xol'  => array ('type'=>'application/vnd.olpc-content',       'icon'=>'text.gif'),
+        'xoj'  => array ('type'=>'application/vnd.olpc-journal-entry', 'icon'=>'text.gif'),
+        'xo'   => array ('type'=>'application/vnd.olpc-sugar',    'icon'=>'sugarapp.gif'),
+
+        'pr'   => array ('type'=>'application/x-squeak-project',    'icon'=>'etoys.gif'),
+        'sts'   => array ('type'=>'application/x-squeak-source',    'icon'=>'etoys.gif'),
+        'sqo'   => array ('type'=>'application/x-squeak-object',    'icon'=>'etoys.gif'),
+
+
         'xsl'  => array ('type'=>'text/xml', 'icon'=>'xml.gif'),
         'zip'  => array ('type'=>'application/zip', 'icon'=>'zip.gif')
     );
