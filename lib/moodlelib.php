@@ -600,6 +600,22 @@ function clean_param($param, $type) {
 }
 
 /**
+ * Return true if given value is integer or string with integer value
+ *
+ * @param mixed $value String or Int
+ * @return bool true if number, false if not
+ */
+function is_number($value) {
+    if (is_int($value)) {
+        return true;
+    } else if (is_string($value)) {
+        return ((string)(int)$value) === $value;
+    } else {
+        return false;
+    }
+}
+
+/**
  * This function is useful for testing whether something you got back from
  * the HTML editor actually contains anything. Sometimes the HTML editor
  * appear to be empty, but actually you get back a <br> tag or something.
@@ -2959,7 +2975,7 @@ function update_user_record($username, $authplugin) {
                 continue;
             }
             if ($confval === 'onlogin') {
-                $value = addslashes(stripslashes($value));   // Just in case
+                $value = addslashes($value);
                 // MDL-4207 Don't overwrite modified user profile values with
                 // empty LDAP values when 'unlocked if empty' is set. The purpose
                 // of the setting 'unlocked if empty' is to allow the user to fill
@@ -3120,7 +3136,7 @@ function authenticate_user_login($username, $password) {
         $auth = empty($user->auth) ? 'manual' : $user->auth;  // use manual if auth not set
         if ($auth=='nologin' or !is_enabled_auth($auth)) {
             add_to_log(0, 'login', 'error', 'index.php', $username);
-            error_log('[client '.$_SERVER['REMOTE_ADDR']."]  $CFG->wwwroot  Disabled Login:  $username  ".$_SERVER['HTTP_USER_AGENT']);
+            error_log('[client '.getremoteaddr()."]  $CFG->wwwroot  Disabled Login:  $username  ".$_SERVER['HTTP_USER_AGENT']);
             return false;
         }
         $auths = array($auth);
@@ -3129,7 +3145,8 @@ function authenticate_user_login($username, $password) {
         // check if there's a deleted record (cheaply)
         if (get_field('user', 'id', 'username', $username, 'deleted', 1, '')) {
             add_to_log(0, 'login', 'error', 'index.php', $username);
-            error_log('[client ' .$_SERVER['REMOTE_ADDR'].
+
+            error_log('[client '.getremoteaddr().
                       "]  $CFG->wwwroot  Deleted Login:  $username  ".
                       $_SERVER['HTTP_USER_AGENT']);
             return false;
@@ -3196,7 +3213,7 @@ function authenticate_user_login($username, $password) {
     // failed if all the plugins have failed
     add_to_log(0, 'login', 'error', 'index.php', $username);
     if (debugging('', DEBUG_ALL)) {
-        error_log('[client '.$_SERVER['REMOTE_ADDR']."]  $CFG->wwwroot  Failed Login:  $username  ".$_SERVER['HTTP_USER_AGENT']);
+        error_log('[client '.getremoteaddr()."]  $CFG->wwwroot  Failed Login:  $username  ".$_SERVER['HTTP_USER_AGENT']);
     }
     return false;
 }
@@ -3219,6 +3236,11 @@ function complete_user_login($user) {
     global $CFG, $USER;
 
     $USER = $user; // this is required because we need to access preferences here!
+
+    if (!empty($CFG->regenloginsession)) {
+        // please note this setting may break some auth plugins
+        session_regenerate_id();
+    }
 
     reload_user_preferences();
 
@@ -5237,6 +5259,7 @@ function places_to_search_for_lang_strings() {
         'gradereport_' => array('grade/report'),
         'gradeimport_' => array('grade/import'),
         'gradeexport_' => array('grade/export'),
+        'qformat_' => array('question/format'),
         'profilefield_' => array('user/profile/field'),
         '' => array('mod')
     );
@@ -7246,8 +7269,17 @@ function address_in_subnet($addr, $subnetstr) {
         $subnet = trim($subnet);
         if (strpos($subnet, '/') !== false) { /// type 1
             list($ip, $mask) = explode('/', $subnet);
-            if ($mask === '' || $mask > 32) {
-                $mask = 32;
+            if (!is_number($mask) || $mask < 0 || $mask > 32) {
+                continue;
+            }
+            if ($mask == 0) {
+                return true;
+            }
+            if ($mask == 32) {
+                if ($ip === $addr) {
+                    return true;
+                }
+                continue;
             }
             $mask = 0xffffffff << (32 - $mask);
             $found = ((ip2long($addr) & $mask) == (ip2long($ip) & $mask));
@@ -7485,15 +7517,24 @@ function unzip_file ($zipfile, $destination = '', $showstatus = true) {
     //    -$zipfilename is the name of the zip file (without path)
     //    -$destpath is the destination path where the zip file will uncompressed (dir)
 
-    $list = null;
+    $list = array();
+
+    require_once("$CFG->libdir/filelib.php");
+
+    do {
+        $temppath = "$CFG->dataroot/temp/unzip/".random_string(10);
+    } while (file_exists($temppath));
+    if (!check_dir_exists($temppath, true, true)) {
+        return false;
+    }
 
     if (empty($CFG->unzip)) {    // Use built-in php-based unzip function
 
         include_once("$CFG->libdir/pclzip/pclzip.lib.php");
         $archive = new PclZip(cleardoubleslashes("$zippath/$zipfilename"));
-        if (!$list = $archive->extract(PCLZIP_OPT_PATH, $destpath,
+        if (!$list = $archive->extract(PCLZIP_OPT_PATH, $temppath,
                                        PCLZIP_CB_PRE_EXTRACT, 'unzip_cleanfilename',
-                                       PCLZIP_OPT_EXTRACT_DIR_RESTRICTION, $destpath)) {
+                                       PCLZIP_OPT_EXTRACT_DIR_RESTRICTION, $temppath)) {
             if (!empty($showstatus)) {
                 notice($archive->errorInfo(true));
             }
@@ -7508,7 +7549,7 @@ function unzip_file ($zipfile, $destination = '', $showstatus = true) {
         $command = 'cd '.escapeshellarg($zippath).$separator.
                     escapeshellarg($CFG->unzip).' -o '.
                     escapeshellarg(cleardoubleslashes("$zippath/$zipfilename")).' -d '.
-                    escapeshellarg($destpath).$redirection;
+                    escapeshellarg($temppath).$redirection;
         //All converted to backslashes in WIN
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             $command = str_replace('/','\\',$command);
@@ -7516,12 +7557,64 @@ function unzip_file ($zipfile, $destination = '', $showstatus = true) {
         Exec($command,$list);
     }
 
+    unzip_process_temp_dir($temppath, $destpath);
+    fulldelete($temppath);
+
     //Display some info about the unzip execution
     if ($showstatus) {
-        unzip_show_status($list,$destpath);
+        unzip_show_status($list, $temppath, $destpath);
     }
 
     return true;
+}
+
+/**
+ * Sanitize temporary unzipped files and move to target dir.
+ * @param string $temppath path to temporary dir with unzip output
+ * @param string $destpath destination path
+ * @return void
+ */
+function unzip_process_temp_dir($temppath, $destpath) {
+    global $CFG;
+
+    $filepermissions = ($CFG->directorypermissions & 0666); // strip execute flags
+
+    if (check_dir_exists($destpath, true, true)) {
+        $currdir = opendir($temppath);
+        while (false !== ($file = readdir($currdir))) {
+            if ($file <> ".." && $file <> ".") {
+                $fullfile = "$temppath/$file";
+                if (is_link($fullfile)) {
+                    //somebody tries to sneak in symbolik link - no way!
+                    continue;
+                }
+                $cleanfile = clean_param($file, PARAM_FILE); // no dangerous chars
+                if ($cleanfile === '') {
+                    // invalid file name
+                    continue;
+                }
+                if ($cleanfile !== $file and file_exists("$temppath/$cleanfile")) {
+                    // eh, weird chars collision detected
+                    continue;
+                }
+                $descfile = "$destpath/$cleanfile";
+                if (is_dir($fullfile)) {
+                    // recurse into subdirs
+                    unzip_process_temp_dir($fullfile, $descfile);
+                }
+                if (is_file($fullfile)) {
+                    // rename and move the file
+                    if (file_exists($descfile)) {
+                        //override existing files
+                        unlink($descfile);
+                    }
+                    rename($fullfile, $descfile);
+                    chmod($descfile, $filepermissions);
+                }
+            }
+        }
+        closedir($currdir);
+    }
 }
 
 function unzip_cleanfilename ($p_event, &$p_header) {
@@ -7543,7 +7636,7 @@ function unzip_cleanfilename ($p_event, &$p_header) {
     return 1;
 }
 
-function unzip_show_status ($list,$removepath) {
+function unzip_show_status($list, $removepath, $removepath2) {
 //This function shows the results of the unzip execution
 //depending of the value of the $CFG->zip, results will be
 //text or an array of files.
@@ -7563,7 +7656,8 @@ function unzip_show_status ($list,$removepath) {
         foreach ($list as $item) {
             echo "<tr>";
             $item['filename'] = str_replace(cleardoubleslashes($removepath).'/', "", $item['filename']);
-            print_cell("left", s($item['filename']));
+            $item['filename'] = str_replace(cleardoubleslashes($removepath2).'/', "", $item['filename']);
+            print_cell("left", s(clean_param($item['filename'], PARAM_PATH)));
             if (! $item['folder']) {
                 print_cell("right", display_size($item['size']));
             } else {
@@ -7580,7 +7674,9 @@ function unzip_show_status ($list,$removepath) {
         print_simple_box_start("center");
         echo "<pre>";
         foreach ($list as $item) {
-            echo s(str_replace(cleardoubleslashes($removepath.'/'), '', $item)).'<br />';
+            $item = str_replace(cleardoubleslashes($removepath.'/'), '', $item);
+            $item = str_replace(cleardoubleslashes($removepath2.'/'), '', $item);
+            echo s($item).'<br />';
         }
         echo "</pre>";
         print_simple_box_end();
@@ -8017,7 +8113,7 @@ function check_dir_exists($dir, $create=false, $recursive=false) {
 
     global $CFG;
 
-    if (strstr($dir, $CFG->dataroot.'/') === false) {
+    if (strstr(cleardoubleslashes($dir), cleardoubleslashes($CFG->dataroot.'/')) === false) {
         debugging('Warning. Wrong call to check_dir_exists(). $dir must be an absolute path under $CFG->dataroot ("' . $dir . '" is incorrect)', DEBUG_DEVELOPER);
     }
 
@@ -8031,9 +8127,8 @@ function check_dir_exists($dir, $create=false, $recursive=false) {
             if ($recursive) {
             /// We are going to make it recursive under $CFG->dataroot only
             /// (will help sites running open_basedir security and others)
-                $dir = str_replace($CFG->dataroot . '/', '', $dir);
+                $dir = str_replace(cleardoubleslashes($CFG->dataroot . '/'), '', cleardoubleslashes($dir));
             /// PHP 5.0 has recursive mkdir parameter, but 4.x does not :-(
-                $dir = str_replace('\\', '/', $dir); //windows compatibility
                 $dirs = explode('/', $dir); /// Extract path parts
             /// Iterate over each part with start point $CFG->dataroot
                 $dir = $CFG->dataroot . '/';

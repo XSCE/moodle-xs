@@ -1,37 +1,30 @@
-<?php  //$Id$
+<?php
 
-///////////////////////////////////////////////////////////////////////////
-//                                                                       //
-// NOTICE OF COPYRIGHT                                                   //
-//                                                                       //
-// Moodle - Modular Object-Oriented Dynamic Learning Environment         //
-//          http://moodle.com                                            //
-//                                                                       //
-// Copyright (C) 1999 onwards  Martin Dougiamas  http://moodle.com       //
-//                                                                       //
-// This program is free software; you can redistribute it and/or modify  //
-// it under the terms of the GNU General Public License as published by  //
-// the Free Software Foundation; either version 2 of the License, or     //
-// (at your option) any later version.                                   //
-//                                                                       //
-// This program is distributed in the hope that it will be useful,       //
-// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
-// GNU General Public License for more details:                          //
-//                                                                       //
-//          http://www.gnu.org/copyleft/gpl.html                         //
-//                                                                       //
-///////////////////////////////////////////////////////////////////////////
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 require_once $CFG->libdir.'/formslib.php';
 
 class edit_category_form extends moodleform {
-    var $allaggoptions;
     var $aggregation_options = array();
 
     function definition() {
         global $CFG, $COURSE;
         $mform =& $this->_form;
+
+        $category = $this->_customdata['current'];
 
         $this->aggregation_options = array(GRADE_AGGREGATE_MEAN            =>get_string('aggregatemean', 'grades'),
                                            GRADE_AGGREGATE_WEIGHTED_MEAN   =>get_string('aggregateweightedmean', 'grades'),
@@ -42,8 +35,6 @@ class edit_category_form extends moodleform {
                                            GRADE_AGGREGATE_MAX             =>get_string('aggregatemax', 'grades'),
                                            GRADE_AGGREGATE_MODE            =>get_string('aggregatemode', 'grades'),
                                            GRADE_AGGREGATE_SUM             =>get_string('aggregatesum', 'grades'));
-
-        $this->allaggoptions = array_keys($this->aggregation_options);
 
         // visible elements
         $mform->addElement('header', 'headercategory', get_string('gradecategory', 'grades'));
@@ -130,11 +121,23 @@ class edit_category_form extends moodleform {
         //$mform->disabledIf('calculation', 'gradetype', 'eq', GRADE_TYPE_NONE);
 
         $options = array(0=>get_string('usenoscale', 'grades'));
-        if ($scales = get_records('scale')) {
+        if ($scales = grade_scale::fetch_all_local($COURSE->id)) {
             foreach ($scales as $scale) {
-                $options[$scale->id] = format_string($scale->name);
+                $options[$scale->id] = $scale->get_name();
             }
         }
+        if ($scales = grade_scale::fetch_all_global()) {
+            foreach ($scales as $scale) {
+                $options[$scale->id] = $scale->get_name();
+            }
+        }
+        // ugly BC hack - it was possbile to use custom scale from other courses :-(
+        if (!empty($category->grade_item_scaleid) and !isset($options[$category->grade_item_scaleid])) {
+            if ($scale = grade_scale::fetch(array('id'=>$category->grade_item_scaleid))) {
+                $options[$scale->id] = $scale->get_name().' '.get_string('incorrectcustomscale', 'grades');
+            }
+        }
+
         $mform->addElement('select', 'grade_item_scaleid', get_string('scale'), $options);
         $mform->setHelpButton('grade_item_scaleid', array('scaleid', get_string('scaleid', 'grades'), 'grade'), true);
         $mform->disabledIf('grade_item_scaleid', 'grade_item_gradetype', 'noteq', GRADE_TYPE_SCALE);
@@ -144,12 +147,12 @@ class edit_category_form extends moodleform {
         $mform->setHelpButton('grade_item_grademax', array('grademax', get_string('grademax', 'grades'), 'grade'), true);
         $mform->disabledIf('grade_item_grademax', 'grade_item_gradetype', 'noteq', GRADE_TYPE_VALUE);
         $mform->disabledIf('grade_item_grademax', 'aggregation', 'eq', GRADE_AGGREGATE_SUM);
-        
+
         $mform->addElement('text', 'grade_item_grademin', get_string('grademin', 'grades'));
         $mform->setHelpButton('grade_item_grademin', array('grademin', get_string('grademin', 'grades'), 'grade'), true);
         $mform->disabledIf('grade_item_grademin', 'grade_item_gradetype', 'noteq', GRADE_TYPE_VALUE);
         $mform->disabledIf('grade_item_grademin', 'aggregation', 'eq', GRADE_AGGREGATE_SUM);
-        
+
         $mform->addElement('text', 'grade_item_gradepass', get_string('gradepass', 'grades'));
         $mform->setHelpButton('grade_item_gradepass', array('gradepass', get_string('gradepass', 'grades'), 'grade'), true);
         $mform->disabledIf('grade_item_gradepass', 'grade_item_gradetype', 'eq', GRADE_TYPE_NONE);
@@ -227,19 +230,6 @@ class edit_category_form extends moodleform {
             $mform->addElement('static', 'currentparentaggregation', get_string('currentparentaggregation', 'grades'));
         }
 
-/// user preferences
-        $mform->addElement('header', 'headerpreferences', get_string('myreportpreferences', 'grades'));
-        $options = array(GRADE_REPORT_PREFERENCE_DEFAULT => get_string('default', 'grades'),
-                         GRADE_REPORT_AGGREGATION_VIEW_FULL => get_string('fullmode', 'grades'),
-                         GRADE_REPORT_AGGREGATION_VIEW_AGGREGATES_ONLY => get_string('aggregatesonly', 'grades'),
-                         GRADE_REPORT_AGGREGATION_VIEW_GRADES_ONLY => get_string('gradesonly', 'grades'));
-        $label = get_string('aggregationview', 'grades') . ' (' . get_string('default', 'grades')
-               . ': ' . $options[$CFG->grade_report_aggregationview] . ')';
-        $mform->addElement('select', 'pref_aggregationview', $label, $options);
-        $mform->setHelpButton('pref_aggregationview', array('aggregationview', get_string('aggregationview', 'grades'), 'grade'), true);
-        $mform->setDefault('pref_aggregationview', GRADE_REPORT_PREFERENCE_DEFAULT);
-        $mform->setAdvanced('pref_aggregationview');
-
         // hidden params
         $mform->addElement('hidden', 'id', 0);
         $mform->setType('id', PARAM_INT);
@@ -251,9 +241,22 @@ class edit_category_form extends moodleform {
         $gpr = $this->_customdata['gpr'];
         $gpr->add_mform_elements($mform);
 
+/// mark advanced according to site settings
+        if (isset($CFG->grade_item_advanced)) {
+            $advanced = explode(',', $CFG->grade_item_advanced);
+            foreach ($advanced as $el) {
+                $el = 'grade_item_'.$el;
+                if ($mform->elementExists($el)) {
+                    $mform->setAdvanced($el);
+                }
+            }
+        }
+
 //-------------------------------------------------------------------------------
         // buttons
         $this->add_action_buttons();
+//-------------------------------------------------------------------------------
+        $this->set_data($category);
     }
 
 
@@ -289,13 +292,9 @@ class edit_category_form extends moodleform {
             }
         }
 
-        $current_aggregation = null;
-
         if ($id = $mform->getElementValue('id')) {
             $grade_category = grade_category::fetch(array('id'=>$id));
             $grade_item = $grade_category->load_grade_item();
-
-            $current_aggregation = $grade_category->aggregation;
 
             // remove agg coef if not used
             if ($grade_category->is_course_category()) {
@@ -351,14 +350,32 @@ class edit_category_form extends moodleform {
             }
             // remove unwanted aggregation options
             if ($mform->elementExists('aggregation')) {
+                $allaggoptions = array_keys($this->aggregation_options);
                 $agg_el =& $mform->getElement('aggregation');
                 $visible = explode(',', $CFG->grade_aggregations_visible);
-                if (!is_null($current_aggregation)) {
+                if (!is_null($grade_category->aggregation)) {
                     // current type is always visible
-                    $visible[] = $current_aggregation;
+                    $visible[] = $grade_category->aggregation;
                 }
-                foreach ($this->allaggoptions as $type) {
-                    if (!in_array($type, $visible) && $grade_category->aggregation != $type) {
+                foreach ($allaggoptions as $type) {
+                    if (!in_array($type, $visible)) {
+                        $agg_el->removeOption($type);
+                    }
+                }
+            }
+
+        } else {
+            // adding new category
+            if ($mform->elementExists('currentparentaggregation')) {
+                $mform->removeElement('currentparentaggregation');
+            }
+            // remove unwanted aggregation options
+            if ($mform->elementExists('aggregation')) {
+                $allaggoptions = array_keys($this->aggregation_options);
+                $agg_el =& $mform->getElement('aggregation');
+                $visible = explode(',', $CFG->grade_aggregations_visible);
+                foreach ($allaggoptions as $type) {
+                    if (!in_array($type, $visible)) {
                         $agg_el->removeOption($type);
                     }
                 }
@@ -367,7 +384,7 @@ class edit_category_form extends moodleform {
 
 
         // no parent header for course category
-        if (!$mform->elementExists('aggregationcoef') and !$mform->elementExists('parentcategory')) {
+        if (!$mform->elementExists('parentcategory')) {
             $mform->removeElement('headerparent');
         }
 
@@ -419,11 +436,33 @@ class edit_category_form extends moodleform {
                         $element =& $mform->createElement('text', 'grade_item_aggregationcoef', get_string($coefstring, 'grades'));
                     }
                     $mform->insertElementBefore($element, 'parentcategory');
-                    $mform->setDefault('grade_item_aggregationcoef', (int) $grade_item->aggregationcoef); // must be cast to int, otherwise "0" counts as true :S
                     $mform->setHelpButton('grade_item_aggregationcoef', array($coefstring, get_string($coefstring, 'grades'), 'grade'), true);
                 }
             }
         }
+    }
+
+/// perform extra validation before submission
+    function validation($data, $files) {
+        global $COURSE;
+
+        $errors = parent::validation($data, $files);
+
+        if (array_key_exists('grade_item_gradetype', $data) and $data['grade_item_gradetype'] == GRADE_TYPE_SCALE) {
+            if (empty($data['grade_item_scaleid'])) {
+                $errors['grade_item_scaleid'] = get_string('missingscale', 'grades');
+            }
+        }
+        if (array_key_exists('grade_item_grademin', $data) and array_key_exists('grade_item_grademax', $data)) {
+            if (($data['grade_item_grademax'] != 0 OR $data['grade_item_grademin'] != 0) AND
+                ($data['grade_item_grademax'] == $data['grade_item_grademin'] OR
+                 $data['grade_item_grademax'] < $data['grade_item_grademin'])) {
+                 $errors['grade_item_grademin'] = get_string('incorrectminmax', 'grades');
+                 $errors['grade_item_grademax'] = get_string('incorrectminmax', 'grades');
+             }
+        }
+
+        return $errors;
     }
 }
 

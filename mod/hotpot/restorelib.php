@@ -49,13 +49,13 @@ function hotpot_restore_mods($mod, $restore) {
     //     backup_unique_code : xxxxxxxxxx
     //     file         : '/full/path/to/backupfile.zip'
     //     mods         : an array of $modinfo's (see below)
-    //     restoreto    : 0=existing course (replace), 1=existing course (append), 2=new course
+    //     restoreto    : See RESTORETO_XXX constants in backup/lib.php
     //     users        : 0=all, 1=course, 2=none
     //     logs         : 0=no, 1=yes
     //     user_files   : 0=no, 1=yes
     //     course_files : 0=no, 1=yes
     //     course_id    : id of course into which data is to be restored
-    //     deleting     : true if 'restoreto'==0, otherwise false
+    //     deleting     : true if 'restoreto'==RESTORETO_NEW_COURSE, otherwise false
     //     original_wwwroot : 'http://your.server.com/moodle'
     // $modinfo is an array
     //    'modname'    : array( 'restore'=> 0=no 1=yes, 'userinfo' => 0=no 1=yes)
@@ -479,5 +479,47 @@ function hotpot_restore_logs($restore, $log) {
         break;
     } // end switch
     return $status ? $log : false;
+}
+
+function hotpot_decode_content_links($content, $restore) {
+    $search = '/\$@(HOTPOT)\*([a-z]+)\*([a-z]+)\*([0-9]+)@\$/ise';
+    $replace = 'hotpot_decode_content_link("$2", "$3", "$4", $restore)';
+    return preg_replace($search, $replace, $content);
+}
+
+function hotpot_decode_content_link($scriptname, $paramname, $paramvalue, &$restore) {
+    global $CFG;
+
+    $table = '';
+    switch ($paramname) {
+        case 'id':
+            switch ($scriptname) {
+                case 'index':
+                    $table = 'course';
+                    break;
+                case 'report':
+                case 'review':
+                case 'view':
+                    $table = 'course_modules';
+                    break;
+                case 'attempt':
+                    $table = 'hotpot_attempts';
+                    break;
+            }
+            break;
+        case 'hp':
+        case 'hotpotid':
+            $table = 'hotpot';
+            break;
+    }
+
+    $new_id = 0;
+    if ($table) {
+        if ($rec = backup_getid($restore->backup_unique_code, $table, $paramvalue)) {
+            $new_id = $rec->new_id;
+        }
+    }
+
+    return "$CFG->wwwroot/mod/hotpot/$scriptname.php?$paramname=$new_id";
 }
 ?>

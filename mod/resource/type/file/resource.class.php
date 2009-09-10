@@ -736,7 +736,7 @@ class resource_file extends resource_base {
                 return extern_server_file($this->resource->reference);
             }
         }
-        return md5($_SERVER['REMOTE_ADDR'].$CFG->resource_secretphrase);
+        return md5(getremoteaddr().$CFG->resource_secretphrase);
     }
 
     function setup_preprocessing(&$defaults){
@@ -790,8 +790,9 @@ class resource_file extends resource_base {
 
         $this->set_parameters(); // set the parameter array for the form
 
-        $mform->addElement('choosecoursefile', 'reference', get_string('location'));
+        $mform->addElement('choosecoursefile', 'reference', get_string('location'), null, array('maxlength' => 255, 'size' => 48));
         $mform->setDefault('reference', $CFG->resource_defaulturl);
+        $mform->addGroupRule('reference', array('value' => array(array(get_string('maximumchars', '', 255), 'maxlength', 255, 'client'))));
         $mform->addRule('name', null, 'required', null, 'client');
 
         if (!empty($CFG->resource_websearch)) {

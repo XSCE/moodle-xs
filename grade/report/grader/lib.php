@@ -1,27 +1,20 @@
-<?php // $Id$
+<?php
 
-///////////////////////////////////////////////////////////////////////////
-//                                                                       //
-// NOTICE OF COPYRIGHT                                                   //
-//                                                                       //
-// Moodle - Modular Object-Oriented Dynamic Learning Environment         //
-//          http://moodle.com                                            //
-//                                                                       //
-// Copyright (C) 1999 onwards Martin Dougiamas  http://dougiamas.com     //
-//                                                                       //
-// This program is free software; you can redistribute it and/or modify  //
-// it under the terms of the GNU General Public License as published by  //
-// the Free Software Foundation; either version 2 of the License, or     //
-// (at your option) any later version.                                   //
-//                                                                       //
-// This program is distributed in the hope that it will be useful,       //
-// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
-// GNU General Public License for more details:                          //
-//                                                                       //
-//          http://www.gnu.org/copyleft/gpl.html                         //
-//                                                                       //
-///////////////////////////////////////////////////////////////////////////
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 /**
  * File in which the grader_report class is defined.
  * @package gradebook
@@ -152,6 +145,20 @@ class grade_report_grader extends grade_report {
     function process_data($data) {
         $warnings = array();
 
+        $separategroups = false;
+        $mygroups       = array();
+        if ($this->groupmode == SEPARATEGROUPS and !has_capability('moodle/site:accessallgroups', $this->context)) {
+            $separategroups = true;
+            $mygroups = groups_get_user_groups($this->course->id);
+            $mygroups = $mygroups[0]; // ignore groupings
+            // reorder the groups fro better perf bellow
+            $current = array_search($this->currentgroup, $mygroups);
+            if ($current !== false) {
+                unset($mygroups[$current]);
+                array_unshift($mygroups, $this->currentgroup);
+            }
+        }
+
         // always initialize all arrays
         $queue = array();
         foreach ($data as $varname => $postedvalue) {
@@ -223,6 +230,24 @@ class grade_report_grader extends grade_report {
                      $feedback = NULL;
                 } else {
                      $feedback = stripslashes($postedvalue);
+                }
+            }
+
+            // group access control
+            if ($separategroups) {
+                // note: we can not use $this->currentgroup because it would fail badly
+                //       when having two browser windows each with different group
+                $sharinggroup = false;
+                foreach($mygroups as $groupid) {
+                    if (groups_is_member($groupid, $userid)) {
+                        $sharinggroup = true;
+                        break;
+                    }
+                }
+                if (!$sharinggroup) {
+                    // either group membership changed or somebedy is hacking grades of other group
+                    $warnings[] = get_string('errorsavegrade', 'grades');
+                    continue;
                 }
             }
 
@@ -484,9 +509,9 @@ class grade_report_grader extends grade_report {
      */
     function get_headerhtml() {
         global $CFG, $USER;
-
+        
         $this->rowcount = 0;
-        $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+        $fixedstudents = $this->is_fixed_students();
 
         if (!$fixedstudents) {
             $strsortasc   = $this->get_lang_string('sortasc', 'grades');
@@ -659,7 +684,7 @@ class grade_report_grader extends grade_report {
         $numusers      = count($this->users);
         $showuserimage = $this->get_pref('showuserimage');
         $showuseridnumber = $this->get_pref('showuseridnumber');
-        $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+        $fixedstudents = $this->is_fixed_students();
 
         // Preload scale objects for items with a scaleid
         $scales_list = '';
@@ -714,7 +739,7 @@ class grade_report_grader extends grade_report {
 
                 if ($showuseridnumber) {
                     $studentshtml .= '<th class="c'.$columncount++.' useridnumber" onclick="set_row(this.parentNode.rowIndex);">'.
-                            $user->idnumber.'</a></th>';
+                            $user->idnumber.'</th>';
                 }
 
             }
@@ -765,17 +790,17 @@ class grade_report_grader extends grade_report {
                     // $cellclasses .= ' excluded';
                 }
 
-                $grade_title = '&lt;div class=&quot;fullname&quot;&gt;'.fullname($user).'&lt;/div&gt;';
-                $grade_title .= '&lt;div class=&quot;itemname&quot;&gt;'.$item->get_name(true).'&lt;/div&gt;';
+                $grade_title = '<div class="fullname">'.fullname($user).'</div>';
+                $grade_title .= '<div class="itemname">'.$item->get_name(true).'</div>';
 
                 if (!empty($grade->feedback) && !$USER->gradeediting[$this->courseid]) {
-                    $grade_title .= '&lt;div class=&quot;feedback&quot;&gt;'
-                                 .wordwrap(trim(format_string($grade->feedback, $grade->feedbackformat)), 34, '&lt;br/ &gt;') . '&lt;/div&gt;';
+                    $grade_title .= '<div class="feedback">'
+                                 .wordwrap(trim(format_string($grade->feedback, $grade->feedbackformat)), 34, '<br/ >') . '</div>';
                 } else {
 
                 }
 
-                $studentshtml .= '<td class="'.$cellclasses.'" title="'.$grade_title.'">';
+                $studentshtml .= '<td class="'.$cellclasses.'" title="'.s($grade_title).'">';
 
                 if ($grade->is_excluded()) {
                     $studentshtml .= '<span class="excludedfloater">'.get_string('excluded', 'grades') . '</span> ';
@@ -881,11 +906,6 @@ class grade_report_grader extends grade_report {
                     } else {
                         $studentshtml .= '<span class="gradevalue'.$hidden.$gradepass.'">'.grade_format_gradevalue($gradeval, $item, true, $gradedisplaytype, null).'</span>';
                     }
-
-                    // Close feedback span
-                    if (!empty($grade->feedback)) {
-                        $studentshtml .= '</span>';
-                    }
                 }
 
                 if (!empty($this->gradeserror[$item->id][$userid])) {
@@ -905,7 +925,7 @@ class grade_report_grader extends grade_report {
 
         $showuserimage = $this->get_pref('showuserimage');
         $showuseridnumber = $this->get_pref('showuseridnumber');
-        $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+        $fixedstudents = $this->is_fixed_students();
 
         $strsortasc   = $this->get_lang_string('sortasc', 'grades');
         $strsortdesc  = $this->get_lang_string('sortdesc', 'grades');
@@ -948,12 +968,12 @@ class grade_report_grader extends grade_report {
             for ($i = 0; $i < $levels; $i++) {
                 $studentshtml .= '
                         <tr class="heading name_row">
-                            <td '.$colspan.' class="fixedcolumn cell c0 topleft"> </td>
+                            <td '.$colspan.' class="fixedcolumn cell c0 topleft">&nbsp;</td>
                         </tr>
                         ';
             }
 
-            $studentshtml .= '<tr class="heading"><th class="header c0" scope="col"><a href="'.$this->baseurl.'&amp;sortitemid=firstname">'
+            $studentshtml .= '<tr class="heading"><th id="studentheader" class="header c0" scope="col"><a href="'.$this->baseurl.'&amp;sortitemid=firstname">'
                         . $strfirstname . '</a> '
                         . $firstarrow. '/ <a href="'.$this->baseurl.'&amp;sortitemid=lastname">' . $strlastname . '</a>'. $lastarrow .'</th>';
 
@@ -1007,7 +1027,7 @@ class grade_report_grader extends grade_report {
             $straverage = get_string('overallaverage', 'grades');
             $showaverages = $this->get_pref('showaverages');
             $showaverages_group = $this->currentgroup && $showaverages;
-            
+
             if ($showaverages_group) {
                 $studentshtml .= '<tr class="groupavg r'.$this->rowcount++.'"><th class="header c0" '.$colspan.'scope="row">'.$straverage_group.'</th></tr>';
             }
@@ -1029,6 +1049,21 @@ class grade_report_grader extends grade_report {
         }
 
         return $studentshtml;
+    }
+
+    /**
+     * Closes all open elements
+     */
+    function get_endhtml() {
+        global $CFG, $USER;
+
+        $fixedstudents = $this->is_fixed_students();
+
+        if ($fixedstudents) {
+            return "</tbody></table></div>";
+        } else {
+            return "</tbody></table>";
+        }
     }
 
     /**
@@ -1115,13 +1150,13 @@ class grade_report_grader extends grade_report {
 
             $ungraded_counts = get_records_sql($SQL);
 
-            $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+            $fixedstudents = $this->is_fixed_students();
             if (!$fixedstudents) {
                 $colspan='';
                 if ($this->get_pref('showuseridnumber')) {
                     $colspan = 'colspan="2" ';
                 }
-                $avghtml .= '<th class="header c0 range "'.$colspan.' scope="row">'.$straverage.'</th>';
+                $avghtml .= '<th class="header c0 range" '.$colspan.' scope="row">'.$straverage.'</th>';
             }
 
             foreach ($this->gtree->items as $itemid=>$unused) {
@@ -1205,13 +1240,13 @@ class grade_report_grader extends grade_report {
             $columncount=0;
             $rangehtml = '<tr class="range r'.$this->rowcount++.' heading">';
 
-            $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+            $fixedstudents = $this->is_fixed_students();
             if (!$fixedstudents) {
                 $colspan='';
                 if ($this->get_pref('showuseridnumber')) {
                     $colspan = 'colspan="2" ';
                 }
-                $rangehtml .= '<th class="header c0 range "'.$colspan.' scope="row">'.$this->get_lang_string('range','grades').'</th>';
+                $rangehtml .= '<th class="header c0 range" '.$colspan.' scope="row">'.$this->get_lang_string('range','grades').'</th>';
             }
 
             foreach ($this->gtree->items as $itemid=>$unused) {
@@ -1245,7 +1280,7 @@ class grade_report_grader extends grade_report {
 
             $iconshtml = '<tr class="controls">';
 
-            $fixedstudents = empty($USER->screenreader) && $CFG->grade_report_fixedstudents;
+            $fixedstudents = $this->is_fixed_students();
             $showuseridnumber = $this->get_pref('showuseridnumber');
 
             $colspan = '';
@@ -1333,7 +1368,6 @@ class grade_report_grader extends grade_report {
             $strswitch_whole = $this->get_lang_string('fullmode', 'grades');
 
             $expand_contract = 'switch_minus'; // Default: expanded
-            // $this->get_pref('aggregationview', $element['object']->id) == GRADE_REPORT_AGGREGATION_VIEW_COMPACT
 
             if (in_array($element['object']->id, $this->collapsed['aggregatesonly'])) {
                 $expand_contract = 'switch_plus';
@@ -1396,6 +1430,23 @@ class grade_report_grader extends grade_report {
         }
 
         return true;
+    }
+    
+    /**
+     * Returns whether or not to display fixed students column.
+     * Includes a browser check, because IE6 doesn't support the scrollbar.
+     *
+     * @return bool
+     */
+    function is_fixed_students() {
+        global $USER, $CFG;
+        return empty($USER->screenreader) && $CFG->grade_report_fixedstudents && 
+            (check_browser_version('MSIE', '7.0') || 
+             check_browser_version('Firefox', '2.0') ||
+             check_browser_version('Gecko', '2006010100') ||
+             check_browser_version('Camino', '1.0') ||
+             check_browser_version('Opera', '6.0') ||
+             check_browser_version('Safari', '2.0')); 
     }
 }
 ?>

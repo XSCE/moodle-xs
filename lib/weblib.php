@@ -338,14 +338,21 @@ class moodle_url {
             $this->params($params);
         }
     }
+
     /**
-     * Add an array of params to the params for this page. The added params override existing ones if they
-     * have the same name.
+     * Add an array of params to the params for this page. 
      *
-     * @param array $params
+     * The added params override existing ones if they have the same name.
+     *
+     * @param array $params Defaults to null. If null then return value of param 'name'.
+     * @return array Array of Params for url.
      */
-    function params($params){
-        $this->params = $params + $this->params;
+    function params($params = null) {
+        if (!is_null($params)) {
+            return $this->params = $params + $this->params;
+        } else {
+            return $this->params;
+        }
     }
 
     /**
@@ -2288,9 +2295,6 @@ function html_to_text($html) {
     $h2t = new html2text($html);
     $result = $h2t->get_text();
 
-    // html2text does not fix HTML entities so handle those here.
-    $result = html_entity_decode($result, ENT_NOQUOTES, 'UTF-8');
-
     return $result;
 }
 
@@ -3874,7 +3878,11 @@ function build_navigation($extranavlinks, $cm = null) {
         if (!empty($navlink['type']) && $navlink['type'] == 'activity' && !$last && $hideactivitylink) {
             continue;
         }
-        $navigation .= '<li class="first">';
+        if ($first) {
+            $navigation .= '<li class="first">';
+        } else {
+            $navigation .= '<li>';
+        }
         if (!$first) {
             $navigation .= get_separator();
         }
@@ -4964,7 +4972,7 @@ function print_textarea($usehtmleditor, $rows, $cols, $width, $height, $name, $v
 
             }
             $str .= ($scriptcount < 1) ? '<script type="text/javascript" src="'.
-                    $CFG->httpswwwroot .'/lib/editor/htmlarea/lang/en.php"></script>'."\n" : '';
+                    $CFG->httpswwwroot .'/lib/editor/htmlarea/lang/en.php?id='.$courseid.'"></script>'."\n" : '';
             $scriptcount++;
 
             if ($height) {    // Usually with legacy calls
@@ -6439,16 +6447,12 @@ function print_side_block($heading='', $content='', $list=NULL, $icons=NULL, $fo
     //Accessibility: skip block link, with title-text (or $block_id) to differentiate links.
     static $block_id = 0;
     $block_id++;
-    if (empty($heading)) {
-        $skip_text = get_string('skipblock', 'access').' '.$block_id;
-    }
-    else {
-        $skip_text = get_string('skipa', 'access', strip_tags($title));
-    }
+    $skip_text = get_string('skipa', 'access', strip_tags($title));
     $skip_link = '<a href="#sb-'.$block_id.'" class="skip-block">'.$skip_text.'</a>';
     $skip_dest = '<span id="sb-'.$block_id.'" class="skip-block-to"></span>';
 
-    if (! empty($heading)) {
+    $strip_title = strip_tags($title);
+    if (! empty($strip_title)) {
         echo $skip_link;
     }
     //ELSE: a single link on a page "Skip block 4" is too confusing - ignore.
@@ -7121,6 +7125,18 @@ function is_in_popup() {
     return ($inpopup);
 }
 
+/**
+ * Return the authentication plugin title
+ * @param string $authtype plugin type
+ * @return string
+ */
+function auth_get_plugin_title ($authtype) {
+    $authtitle = get_string("auth_{$authtype}title", "auth");
+    if ($authtitle == "[[auth_{$authtype}title]]") {
+        $authtitle = get_string("auth_{$authtype}title", "auth_{$authtype}");
+    }
+    return $authtitle;
+}
 
 // vim:autoindent:expandtab:shiftwidth=4:tabstop=4:tw=140:
 ?>

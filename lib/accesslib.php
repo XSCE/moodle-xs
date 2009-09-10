@@ -141,7 +141,6 @@ define('CONTEXT_SYSTEM', 10);
 define('CONTEXT_USER', 30);
 define('CONTEXT_COURSECAT', 40);
 define('CONTEXT_COURSE', 50);
-define('CONTEXT_GROUP', 60);
 define('CONTEXT_MODULE', 70);
 define('CONTEXT_BLOCK', 80);
 
@@ -181,7 +180,8 @@ function cache_context($context) {
     // If there are too many items in the cache already, remove items until
     // there is space
     while (count($context_cache_id) >= MAX_CONTEXT_CACHE_SIZE) {
-        $first = array_shift($context_cache_id);
+        $first = reset($context_cache_id);
+        unset($context_cache_id[$first->id]);
         unset($context_cache[$first->contextlevel][$first->instanceid]);
     }
 
@@ -982,6 +982,11 @@ function get_user_courses_bycap($userid, $cap, $accessdata, $doanything, $sort='
         $fields = array_unique($fields);
     } else {
         $fields = $basefields;
+    }
+    // If any of the fields is '*', leave it alone, discarding the rest
+    // to avoid ambiguous columns under some silly DBs. See MDL-18746 :-D
+    if (in_array('*', $fields)) {
+        $fields = array('*');
     }
     $coursefields = 'c.' .implode(',c.', $fields);
 
@@ -2425,13 +2430,6 @@ function cleanup_contexts() {
               LEFT OUTER JOIN {$CFG->prefix}block_instance t
                 ON c.instanceid = t.id
               WHERE t.id IS NULL AND c.contextlevel = " . CONTEXT_BLOCK . "
-            UNION
-              SELECT c.contextlevel,
-                     c.instanceid
-              FROM {$CFG->prefix}context c
-              LEFT OUTER JOIN {$CFG->prefix}groups t
-                ON c.instanceid = t.id
-              WHERE t.id IS NULL AND c.contextlevel = " . CONTEXT_GROUP . "
            ";
     if ($rs = get_recordset_sql($sql)) {
         begin_sql();
@@ -2507,7 +2505,7 @@ function preload_course_contexts($courseid) {
 function get_context_instance($contextlevel, $instance=0) {
 
     global $context_cache, $context_cache_id, $CFG;
-    static $allowed_contexts = array(CONTEXT_SYSTEM, CONTEXT_USER, CONTEXT_COURSECAT, CONTEXT_COURSE, CONTEXT_GROUP, CONTEXT_MODULE, CONTEXT_BLOCK);
+    static $allowed_contexts = array(CONTEXT_SYSTEM, CONTEXT_USER, CONTEXT_COURSECAT, CONTEXT_COURSE, CONTEXT_MODULE, CONTEXT_BLOCK);
 
     if ($contextlevel === 'clearcache') {
         // TODO: Remove for v2.0
@@ -3480,14 +3478,6 @@ function print_context_name($context, $withprefix = true, $short = false) {
             }
             break;
 
-        case CONTEXT_GROUP: // 1 to 1 to course
-            if ($name = groups_get_group_name($context->instanceid)) {
-                if ($withprefix){
-                    $name = get_string('group').': '. $name;
-                }
-            }
-            break;
-
         case CONTEXT_MODULE: // 1 to 1 to course
             if ($cm = get_record('course_modules','id',$context->instanceid)) {
                 if ($module = get_record('modules','id',$cm->module)) {
@@ -3776,33 +3766,14 @@ function get_child_contexts($context) {
             return array();
         break;
 
-        case CONTEXT_GROUP:
-            // No children.
-            return array();
-        break;
-
         case CONTEXT_COURSE:
             // Find
             // - module instances - easy
-            // - groups
             // - blocks assigned to the course-view page explicitly - easy
-            // - blocks pinned (note! we get all of them here, regardless of vis)
             $sql = " SELECT ctx.*
                      FROM {$CFG->prefix}context ctx
                      WHERE ctx.path LIKE '{$context->path}/%'
                            AND ctx.contextlevel IN (".CONTEXT_MODULE.",".CONTEXT_BLOCK.")
-                    UNION
-                     SELECT ctx.*
-                     FROM {$CFG->prefix}context ctx
-                     JOIN {$CFG->prefix}groups  g
-                       ON (ctx.instanceid=g.id AND ctx.contextlevel=".CONTEXT_GROUP.")
-                     WHERE g.courseid={$context->instanceid}
-                    UNION
-                     SELECT ctx.*
-                     FROM {$CFG->prefix}context ctx
-                     JOIN {$CFG->prefix}block_pinned  b
-                       ON (ctx.instanceid=b.blockid AND ctx.contextlevel=".CONTEXT_BLOCK.")
-                     WHERE b.pagetype='course-view'
             ";
             $rs  = get_recordset_sql($sql);
             $records = array();
@@ -3997,10 +3968,6 @@ function get_component_string($component, $contextlevel) {
             } else {
                 $string = get_string('course');
             }
-        break;
-
-        case CONTEXT_GROUP:
-            $string = get_string('group');
         break;
 
         case CONTEXT_MODULE:
