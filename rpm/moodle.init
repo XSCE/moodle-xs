@@ -45,6 +45,21 @@ start() {
 
 		echo "["`date`"]" Start install / upgrade >> /var/log/moodle-instupg.log 
 
+		# Correct a bungled 'version' variable in mdl_config. If version matches local_version, and
+		# is one of the known-to-be-bungled local_version/version pairs, fix it to the last-known-good
+		# value.
+		echo "Correcting version/local_version mangling - will error out on fresh DBs" >> /var/log/moodle-instupg.log 
+		(su -c "psql -c \"UPDATE mdl_config 
+                                 SET value='2007101526'
+                                 WHERE id=(SELECT v.id 
+                                           FROM mdl_config v 
+                                            JOIN mdl_config lv 
+                                                 ON (v.name='version' AND lv.name='local_version'
+                                                     AND v.value=lv.value)
+                                           WHERE lv.value IN ('2009030301', '2009042801',
+                                                              '2009051800', '2009052500'));\" moodle-xs " postgres 2>&1 ) >> /var/log/moodle-instupg.log 
+
+
 		# Before install/upgrade, enable the admin user
 		# (will DTRT for upgrades, fail silently in fresh installs)
 		( sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-enable.php 2>&1 ) >> /var/log/moodle-instupg.log 
