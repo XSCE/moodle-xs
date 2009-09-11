@@ -204,6 +204,20 @@ function upgrade_local_db($continueto) {
     upgrade_log_finish();
 }
 
+function upgrade_local_savepoint($result, $local_version) {
+    global $CFG;
+
+    if ($result) {
+        if ($CFG->local_version >= $local_version) {
+            // something really wrong is going on in main upgrade script
+            error("Upgrade savepoint: Can not upgrade local version from $CFG->local_version to $local_version.");
+        }
+        set_config('local_version', $localversion);
+    } else {
+        notify ("Upgrade savepoint: Error during local upgrade to version $local_version");
+    }
+}
+
 /**
  * Notify local code that a course is being deleted.
  * Look for a function local_delete_course() in a file called
