@@ -27,7 +27,7 @@ function xmldb_local_upgrade($version) {
     /// Launch create table for oat_laptops
         $result = $result && create_table($table);
 
-        upgrade_main_savepoint($result, 2009052500);
+        upgrade_local_savepoint($result, 2009052500);
     }
     return $result;
 }
