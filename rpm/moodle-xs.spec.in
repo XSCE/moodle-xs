@@ -61,7 +61,7 @@ sed -i 's/\r//' mod/wiki/ewiki/README.de
 %build
 
 # Get rid of unwarranted stuff
-rm config-dist.php install.php tags filter/tex/mimetex.* filter/tex/README.mimetex
+rm config-dist.php install.php COPYING.txt tags* filter/tex/mimetex.* filter/tex/README.mimetex 
 
 %install
 rm -rf $RPM_BUILD_ROOT
