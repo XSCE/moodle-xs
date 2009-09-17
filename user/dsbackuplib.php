@@ -41,7 +41,7 @@ function ds_print_dir($user, $aliasuser, $dsdir, $course) {
         error("Malformed datastore directory - " . $dspath);
     }
 
-    $epoch = mktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
+    $epoch = gmmktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
     echo '<p>';
     echo get_string('backuptakenat', 'olpcxs') . ' ';
     echo timestamp_to_elapsed_string($epoch, time()) . ' ' . get_string('ago','timedistances').'. ';
@@ -250,7 +250,7 @@ function ds_readmetadata_v1($mdpath) {
 // elapsed-time strings
 function dsts_to_elapsed_string($dsts) {
     if (preg_match('^(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/', $dsts)) {
-        $epoch = mktime($match[4], $match[5], $match[2], $match[3], $match[1]);
+        $epoch = gmmktime($match[4], $match[5], $match[2], $match[3], $match[1]);
         return timestamp_to_elapsed_string($epoch, time());
     } else {
         mdie("Datastore timestamp string does not match dsts format");
@@ -282,7 +282,7 @@ function ds_print_snapshotlist($user, $aliasuser, $course) {
         if (!preg_match('/^datastore-(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})$/',$direntry, $match)) {
             continue;
         }
-        $epoch = mktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
+        $epoch = gmmktime($match[4], $match[5], 0, $match[2], $match[3], $match[1]);
         $strtime = timestamp_to_elapsed_string($epoch, time());
         $dirents[] = array($direntry, $strtime);
     }
