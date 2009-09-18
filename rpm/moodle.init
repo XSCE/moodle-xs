@@ -77,11 +77,11 @@ start() {
                     sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-disable.php 2>&1 ) \
 		    >> /var/log/moodle-instupg.log 
 		if [ $? = 0 ]; then
-		    success
+		    # success
 		    echo "["`date`"]" Finished install / upgrade - Success >> /var/log/moodle-instupg.log 
 		    rm -f /etc/moodle/needsupgrade
 		else
-		    failur
+		    # failure
 		    echo "["`date`"]" Finished install / upgrade - Failure >> /var/log/moodle-instupg.log 
 		    exit 1
 		fi
