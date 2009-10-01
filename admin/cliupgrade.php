@@ -778,8 +778,8 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
     if (! $maintables) {
         /// hide errors from headers in case debug enabled in config.php
         $origdebug = $CFG->debug;
-        $CFG->debug = DEBUG_MINIMAL;
-        error_reporting($CFG->debug);
+        //$CFG->debug = DEBUG_MINIMAL;
+        //error_reporting($CFG->debug);
 
         if ( $interactive == CLI_FULL || ($interactive == CLI_SEMI && (!isset($INSTALL['agreelicense']) || empty($INSTALL['agreelicense']))) ) {
             //Print copyright notice and ask to continue
@@ -893,7 +893,8 @@ if ( file_exists(dirname(dirname(__FILE__)) . '/config.php')) {
         include_once("$CFG->dirroot/lib/db/$CFG->dbtype.php");  # defines old upgrades
     }
     if (file_exists("$CFG->dirroot/lib/db/upgrade.php")) {
-        include_once("$CFG->dirroot/lib/db/upgrade.php");  # defines new upgrades
+        require_once("$CFG->dirroot/lib/db/upgradelib.php");
+        require_once("$CFG->dirroot/lib/db/upgrade.php");  # defines new upgrades
     }
 
     $stradministration = get_string("administration");
