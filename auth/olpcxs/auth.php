@@ -328,6 +328,12 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             // return true;
         }
 
+        if (!set_cron_lock('ejabberd_sync_running', time() + 2 * 3600)) {
+            // Concurrent syncs lead to mnesia corruption.
+            trigger_error('ejabberd_sync_running lock held, skipping');
+            return false;
+        }
+
         $ej = new ejabberdctl;
         if (!isset($XS_FQDN)) {
             mdie('$XS_FQDN is not set');
@@ -412,6 +418,8 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             $ej->srg_delete($ejg);
         }
         set_config('ejabberd_sync_ts', $tsnow, 'enrol/olpcxs');
+
+        set_cron_lock('ejabberd_sync_running', null);
     }
 
     // Check and if necessary fix the Online group
