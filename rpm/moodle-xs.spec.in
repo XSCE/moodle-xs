@@ -68,7 +68,7 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{moodlewebdir}
 mkdir -p $RPM_BUILD_ROOT%{moodledatadir}
 mkdir -p $RPM_BUILD_ROOT%{_var}/log/moodle
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/moodle
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/moodle/conf.d
 cp -a * $RPM_BUILD_ROOT%{moodlewebdir}
 rm $RPM_BUILD_ROOT%{moodlewebdir}/README*
 rm -fr $RPM_BUILD_ROOT%{moodlewebdir}/install
@@ -108,6 +108,7 @@ fi
 %dir %{_var}/www/moodle
 %dir %{moodlewebdir}
 %dir %{_sysconfdir}/moodle
+%dir %{_sysconfdir}/moodle/conf.d
 %config(noreplace) %{moodlewebdir}/config.php
 %config(noreplace) %{_sysconfdir}/logrotate.d/moodle
 %attr(-,apache,apache) %{moodledatadir}

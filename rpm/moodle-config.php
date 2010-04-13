@@ -67,6 +67,15 @@ $CFG->unzip='/usr/bin/unzip';
 $CFG->pathtodu='/usr/bin/du';
 $CFG->aspellpath='/usr/bin/aspell';
 
+// Allow for local overrides
+if (is_dir('/etc/moodle/conf.d')) {
+    foreach (glob('/etc/moodle/conf.d/*.php') as $conffile) {
+        include_once($conffile);
+    }
+}
+
+
+// END OF CONFIG 
 
 if ($CFG->wwwroot == 'http://example.com/moodle') {
     echo "<p>Error detected in configuration file</p>";
