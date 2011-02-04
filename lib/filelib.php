@@ -484,6 +484,7 @@ function get_mimetypes_array() {
         'sts'   => array ('type'=>'application/x-squeak-source',    'icon'=>'etoys.gif'),
         'sqo'   => array ('type'=>'application/x-squeak-object',    'icon'=>'etoys.gif'),
 
+        'sb'   => array ('type'=>'application/x-scratch-project',    'icon'=>'scratch.gif'),
 
         'xsl'  => array ('type'=>'text/xml', 'icon'=>'xml.gif'),
         'zip'  => array ('type'=>'application/zip', 'icon'=>'zip.gif')
