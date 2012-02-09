@@ -29,7 +29,7 @@ class ejabberdctl{
     }
 
     function srg_list_groups() {
-        return $this->_exec(array('srg-list-groups', $this->vhost));
+        return $this->_exec(array('srg_list', $this->vhost));
     }    
 
     // This function returns a named array
@@ -52,14 +52,14 @@ class ejabberdctl{
     //
     // 
     function srg_get_info($srg) {
-        $ret = $this->_exec(array('srg-get-info',
+        $ret = $this->_exec(array('srg_get_info',
                                   $srg, $this->vhost));
         if ($ret === null) {
             return null;
         } else {
             $info = array();
             foreach ($ret as $line) {
-                if (preg_match('/^(\w+): (.+)$/', $line, $match)) {
+                if (preg_match('/^(\w+)\t(.+)$/', $line, $match)) {
                     $key = $match[1];
                     $value = $match[2];
                     if (preg_match('/^"(.*)"$/', $value, $valmatch)) {
@@ -69,8 +69,6 @@ class ejabberdctl{
                         // what ejabberd prints is csv'ish as far as
                         // I have tested
                         $value = str_getcsv($valmatch[1]);
-                    } elseif ($key==='members') {
-                        $value = explode(' ', $value);
                     }
                     $info[$key]=$value;
                 }
@@ -78,7 +76,11 @@ class ejabberdctl{
         }
         return $info;
     }
-            
+
+    function srg_get_members($srg) {
+        return $this->_exec(array('srg_get_members', $srg, $this->vhost));
+    }
+
     // Notes:
     // - srg-create allows for a different 'srg identifier' and name,
     //   we hardcode them to be the same.
@@ -88,23 +90,23 @@ class ejabberdctl{
         if ($dispsrg===NULL) {
             $dispsrg = $srg;
         }
-        return $this->_exec(array('srg-create',
+        return $this->_exec(array('srg_create',
                                   $srg, $this->vhost, $srg, $desc, $dispsrg));
     }
 
     function srg_delete($srg) {
-        return $this->_exec(array('srg-delete',
+        return $this->_exec(array('srg_delete',
                                   $srg, $this->vhost)); 
     }
 
 
     function srg_user_add($srg, $user) {
-        return $this->_exec(array('srg-user-add',
+        return $this->_exec(array('srg_user_add',
                                   $user, $this->vhost, $srg, $this->vhost));  
     }
 
     function srg_user_del($srg, $user) {
-        return $this->_exec(array('srg-user-del',
+        return $this->_exec(array('srg_user_del',
                                   $user, $this->vhost, $srg, $this->vhost));
     }
 

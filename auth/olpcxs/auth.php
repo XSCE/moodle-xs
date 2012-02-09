@@ -360,14 +360,9 @@ class auth_plugin_olpcxs extends auth_plugin_base {
             $pos = array_search($mc->shortname, $ejsrg);
             if (is_int($pos)) {
                 array_splice($ejsrg, $pos, 1);
-                $info = $ej->srg_get_info($mc->shortname);
-                if ($info === null) {
+                $ejparticipants = $ej->srg_get_members($mc->shortname);
+                if ($ejparticipants === null) {
                     mdie("srg_get_info failed");
-                }
-                if (empty($info['members'])) {
-                    $ejparticipants = array();
-                } else {
-                    $ejparticipants = $info['members'];
                 }
             } else {
                 $ej->srg_create($mc->shortname, $mc->fullname);
