@@ -62,10 +62,10 @@ start() {
 
 		# Before install/upgrade, enable the admin user
 		# (will DTRT for upgrades, fail silently in fresh installs)
-		( sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-enable.php 2>&1 ) >> /var/log/moodle-instupg.log 
+		( runuser -s /bin/bash -c "/usr/bin/php /var/www/moodle/web/local/scripts/adminuser-enable.php" apache 2>&1 ) >> /var/log/moodle-instupg.log 
 
 		# Install/upgrade moodle DB schema
-		( sudo -u apache /usr/bin/php /var/www/moodle/web/admin/cliupgrade.php \
+		( runuser -s /bin/bash -c "/usr/bin/php /var/www/moodle/web/admin/cliupgrade.php \
 		    --agreelicense=yes --confirmrelease=yes \
 		    --sitefullname='School Server' \
 		    --siteshortname='XS' \
@@ -73,8 +73,8 @@ start() {
 		    --adminfirstname=Admin --adminlastname=OLPC \
 		    --adminusername=admin --adminpassword=`cat /etc/moodle/adminpw` \
 		    --adminemail=admin@localhost \
-		    --verbose=0 --interactivelevel=0 2>&1 && \
-                    sudo -u apache /usr/bin/php /var/www/moodle/web/local/scripts/adminuser-disable.php 2>&1 ) \
+		    --verbose=0 --interactivelevel=0" apache 2>&1 && \
+                    runuser -s /bin/bash -c "/usr/bin/php /var/www/moodle/web/local/scripts/adminuser-disable.php" apache 2>&1 ) \
 		    >> /var/log/moodle-instupg.log 
 		if [ $? = 0 ]; then
 		    # success
