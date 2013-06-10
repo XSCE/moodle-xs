@@ -7,7 +7,7 @@
 
 Name:           moodle-xs
 Version:        @VERSION@
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A Course Management System
 
 Group:          Applications/Publishing
@@ -18,7 +18,7 @@ BuildArch:      noarch
 Source: %{name}-%{version}.tar.gz
 
 BuildRequires:  unzip
-Requires:       php-gd vixie-cron mimetex perl(lib) php-pgsql php-xmlrpc php-mbstring
+Requires:       php-gd cronie mimetex perl(lib) php-pgsql php-xmlrpc php-mbstring
 Requires:       perl(Encode) perl(Text::Aspell) perl(HTML::Parser) php
 Requires:       perl(HTML::Entities) perl(CGI)
 Requires:       mimetex
@@ -127,6 +127,9 @@ fi
 %{moodlewebdir}/login
 
 %changelog
+* Mon Jun 10 2013 George Hunt <georgejhunt@gmail.com>
+- migrate vixie-cron->cronie
+
 * Mon Jun 23 2008 Jon Ciesla <limb@jcomserv.net> - 1.9.1-2
 - Add php Requires, BZ 452341.
 
